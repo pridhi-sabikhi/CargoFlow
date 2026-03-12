@@ -55,8 +55,9 @@ const Navbar = () => {
   const navItems = [
     { label: dashboardLabel, path: getDashboardPath() },
     { label: shipmentsLabel, path: getShipmentsPath() },  // ✅ CHANGED: Dynamic path + label
-    { label: "Warehouses", path: "/warehouses" },
-    { label: "Analytics", path: "/analytics" },
+    { label: "Tracking", path: "/tracking" },
+    { label: "Invoices", path: "/invoices" },
+    { label: "Shipping Label", path: "/shipping-label" },
   ];
 
   return (

@@ -19,20 +19,28 @@ const LoginPage = () => {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const navigate = useNavigate(); // ✅ For navigation
 
   // Load users from localStorage on mount
   useEffect(() => {
     const storedUsers = localStorage.getItem("cargoflow_users");
     if (storedUsers) {
-      setUsers(JSON.parse(storedUsers));
+      try {
+        const parsedUsers = JSON.parse(storedUsers);
+        setUsers(Array.isArray(parsedUsers) ? parsedUsers : []);
+      } catch {
+        setUsers([]);
+      }
     }
+    setUsersLoaded(true);
   }, []);
 
   // Save users to localStorage whenever users state changes
   useEffect(() => {
+    if (!usersLoaded) return;
     localStorage.setItem("cargoflow_users", JSON.stringify(users));
-  }, [users]);
+  }, [users, usersLoaded]);
 
   const validateEmail = (value) => emailRegex.test(value);
   const validatePassword = (value) => passwordRegex.test(value);
@@ -42,24 +50,33 @@ const LoginPage = () => {
     setError("");
     setInfo("");
 
-    if (!email || !password) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const inputPassword = password;
+
+    if (!normalizedEmail || !inputPassword) {
       setError("Please enter email and password.");
       return;
     }
-    if (!validateEmail(email)) {
+    if (!validateEmail(normalizedEmail)) {
       setError("Please enter a valid email address.");
       return;
     }
-    if (!validatePassword(password)) {
-      setError(
-        "Password must have: 12+ chars, 1 uppercase, 1 digit, 1 special char."
-      );
-      return;
+
+    // Read fresh from localStorage to avoid stale React state issues
+    let allUsers = [];
+    try {
+      const stored = localStorage.getItem("cargoflow_users");
+      const parsed = stored ? JSON.parse(stored) : [];
+      allUsers = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      allUsers = [];
     }
 
     // Check if user exists and password matches
-    const user = users.find(
-      (u) => u.email === email && u.password === password
+    const user = allUsers.find(
+      (u) =>
+        (u.email || "").trim().toLowerCase() === normalizedEmail &&
+        u.password === inputPassword
     );
     if (!user) {
       setError("Invalid email or password.");
@@ -96,17 +113,33 @@ const LoginPage = () => {
     setError("");
     setInfo("");
 
-    if (!signupName || !signupEmail || !signupPassword) {
+    const normalizedSignupEmail = signupEmail.trim().toLowerCase();
+
+    if (!signupName || !normalizedSignupEmail || !signupPassword) {
       setError("Please fill all fields to create an account.");
       return;
     }
-    if (!validateEmail(signupEmail)) {
+    if (!validateEmail(normalizedSignupEmail)) {
       setError("Please enter a valid email address.");
       return;
     }
-    
-    // ✅ CHECK FOR DUPLICATE EMAIL IN LOCALSTORAGE
-    if (users.find((user) => user.email === signupEmail)) {
+
+    // Always read from localStorage directly to avoid stale React state
+    let currentUsers = [];
+    try {
+      const stored = localStorage.getItem("cargoflow_users");
+      const parsed = stored ? JSON.parse(stored) : [];
+      currentUsers = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      currentUsers = [];
+    }
+
+    if (
+      currentUsers.find(
+        (user) =>
+          (user.email || "").trim().toLowerCase() === normalizedSignupEmail
+      )
+    ) {
       setError("Account with this email already exists. Please sign in instead.");
       return;
     }
@@ -118,16 +151,20 @@ const LoginPage = () => {
       return;
     }
 
-    // Create new user
     const newUser = {
       id: Date.now().toString(),
       name: signupName,
-      email: signupEmail,
+      email: normalizedSignupEmail,
       password: signupPassword,
       createdAt: new Date().toISOString(),
     };
 
-    setUsers([...users, newUser]);
+    const updatedUsers = [...currentUsers, newUser];
+
+    // Write to localStorage directly so no data is ever lost due to stale state
+    localStorage.setItem("cargoflow_users", JSON.stringify(updatedUsers));
+    setUsers(updatedUsers);
+
     setInfo("Account created successfully! You can now sign in.");
     setMode("signin");
     
