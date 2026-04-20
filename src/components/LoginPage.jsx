@@ -1,4 +1,3 @@
-// src/pages/LoginPage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginPage.css";
@@ -14,15 +13,15 @@ const LoginPage = () => {
   const [signupName, setSignupName] = useState("");
   const [password, setPassword] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState("admin"); // ✅ NEW: Role selection
+  const [selectedRole, setSelectedRole] = useState("admin"); 
   const [showPassword, setShowPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [usersLoaded, setUsersLoaded] = useState(false);
-  const navigate = useNavigate(); // ✅ For navigation
+  const navigate = useNavigate(); 
 
-  // Load users from localStorage on mount
+
   useEffect(() => {
     const storedUsers = localStorage.getItem("cargoflow_users");
     if (storedUsers) {
@@ -72,7 +71,6 @@ const LoginPage = () => {
       allUsers = [];
     }
 
-    // Check if user exists and password matches
     const user = allUsers.find(
       (u) =>
         (u.email || "").trim().toLowerCase() === normalizedEmail &&
@@ -83,14 +81,13 @@ const LoginPage = () => {
       return;
     }
 
-    // ✅ ADD ROLE & STORE IN LOCALSTORAGE
+    
     const userWithRole = { ...user, role: selectedRole };
     localStorage.setItem("current_user", JSON.stringify(userWithRole));
     
     console.log("Login successful:", userWithRole);
     setInfo(`Logged in as ${selectedRole.toUpperCase()}! Redirecting...`);
     
-    // ✅ REDIRECT TO ROLE-BASED DASHBOARD
     setTimeout(() => {
       switch(selectedRole) {
         case 'admin':
@@ -124,7 +121,6 @@ const LoginPage = () => {
       return;
     }
 
-    // Always read from localStorage directly to avoid stale React state
     let currentUsers = [];
     try {
       const stored = localStorage.getItem("cargoflow_users");
@@ -161,7 +157,6 @@ const LoginPage = () => {
 
     const updatedUsers = [...currentUsers, newUser];
 
-    // Write to localStorage directly so no data is ever lost due to stale state
     localStorage.setItem("cargoflow_users", JSON.stringify(updatedUsers));
     setUsers(updatedUsers);
 
@@ -187,7 +182,6 @@ const LoginPage = () => {
       return;
     }
 
-    // Check if email exists
     const user = users.find((user) => user.email === email);
     if (user) {
       setInfo("Password reset link sent to your email.");
@@ -251,7 +245,7 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* Right main */}
+    
         <div className="login-main">
           <div className="login-toggle-bar">
             <button
@@ -338,7 +332,7 @@ const LoginPage = () => {
                 Forgot your password?
               </button>
 
-              {/* ✅ ROLE SELECTION BUTTONS */}
+          
               <div className="role-selector">
                 <label className="form-label">Login as:</label>
                 <div className="role-buttons">
