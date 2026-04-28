@@ -15,6 +15,7 @@ import Tracking from "./components/Tracking";
 import Invoices from "./components/INVOICES";
 import ShippingLabel from "./components/ShippingLabel";
 import CustomerTrackingResult from "./components/CustomerTrackingResult ";
+import ResetPassword from "./components/ResetPassword";
 
 const App = () => {
   return (
@@ -24,6 +25,7 @@ const App = () => {
         <main className="app-main">
           <Routes>
             <Route path="/" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
   <Route path="/manager/dashboard" element={<ManagerDashboard />} />
   <Route path="/driver/dashboard" element={<DriverDashboard />} />

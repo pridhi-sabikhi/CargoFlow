@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 
@@ -7,7 +7,6 @@ const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
 
 const LoginPage = () => {
   const [mode, setMode] = useState("signin");
-  const [users, setUsers] = useState([]);
   const [email, setEmail] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupName, setSignupName] = useState("");
@@ -18,33 +17,14 @@ const LoginPage = () => {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
-  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate(); 
 
-
-  useEffect(() => {
-    const storedUsers = localStorage.getItem("cargoflow_users");
-    if (storedUsers) {
-      try {
-        const parsedUsers = JSON.parse(storedUsers);
-        setUsers(Array.isArray(parsedUsers) ? parsedUsers : []);
-      } catch {
-        setUsers([]);
-      }
-    }
-    setUsersLoaded(true);
-  }, []);
-
-  // Save users to localStorage whenever users state changes
-  useEffect(() => {
-    if (!usersLoaded) return;
-    localStorage.setItem("cargoflow_users", JSON.stringify(users));
-  }, [users, usersLoaded]);
 
   const validateEmail = (value) => emailRegex.test(value);
   const validatePassword = (value) => passwordRegex.test(value);
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
     setError("");
     setInfo("");
@@ -61,51 +41,51 @@ const LoginPage = () => {
       return;
     }
 
-    // Read fresh from localStorage to avoid stale React state issues
-    let allUsers = [];
     try {
-      const stored = localStorage.getItem("cargoflow_users");
-      const parsed = stored ? JSON.parse(stored) : [];
-      allUsers = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      allUsers = [];
-    }
+      setLoading(true);
+      const res = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: inputPassword,
+          role: selectedRole
+        })
+      });
 
-    const user = allUsers.find(
-      (u) =>
-        (u.email || "").trim().toLowerCase() === normalizedEmail &&
-        u.password === inputPassword
-    );
-    if (!user) {
-      setError("Invalid email or password.");
-      return;
-    }
-
-    
-    const userWithRole = { ...user, role: selectedRole };
-    localStorage.setItem("current_user", JSON.stringify(userWithRole));
-    
-    console.log("Login successful:", userWithRole);
-    setInfo(`Logged in as ${selectedRole.toUpperCase()}! Redirecting...`);
-    
-    setTimeout(() => {
-      switch(selectedRole) {
-        case 'admin':
-          navigate("/admin/dashboard");
-          break;
-        case 'manager':
-          navigate("/manager/dashboard");
-          break;
-        case 'driver':
-          navigate("/driver/dashboard");
-          break;
-        default:
-          navigate("/admin/dashboard");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Login failed.");
       }
-    }, 1500);
+
+      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem("current_user", JSON.stringify(data.user));
+
+      setInfo(`Logged in as ${data.user.role.toUpperCase()}! Redirecting...`);
+
+      setTimeout(() => {
+        switch (data.user.role) {
+          case "admin":
+            navigate("/admin/dashboard");
+            break;
+          case "manager":
+            navigate("/manager/dashboard");
+            break;
+          case "driver":
+            navigate("/driver/dashboard");
+            break;
+          default:
+            navigate("/admin/dashboard");
+        }
+      }, 1000);
+    } catch (err) {
+      setError(err.message || "Unable to sign in.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignUp = (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
     setError("");
     setInfo("");
@@ -121,72 +101,78 @@ const LoginPage = () => {
       return;
     }
 
-    let currentUsers = [];
     try {
-      const stored = localStorage.getItem("cargoflow_users");
-      const parsed = stored ? JSON.parse(stored) : [];
-      currentUsers = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      currentUsers = [];
+      if (!validatePassword(signupPassword)) {
+        setError(
+          "Password must have: 12+ chars, 1 uppercase, 1 digit, 1 special char."
+        );
+        return;
+      }
+
+      setLoading(true);
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: signupName,
+          email: normalizedSignupEmail,
+          password: signupPassword,
+          role: selectedRole
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Sign up failed.");
+      }
+
+      setInfo("Account created successfully! You can now sign in.");
+      setMode("signin");
+
+      setSignupName("");
+      setSignupEmail("");
+      setSignupPassword("");
+      setEmail(normalizedSignupEmail);
+    } catch (err) {
+      setError(err.message || "Unable to sign up.");
+    } finally {
+      setLoading(false);
     }
-
-    if (
-      currentUsers.find(
-        (user) =>
-          (user.email || "").trim().toLowerCase() === normalizedSignupEmail
-      )
-    ) {
-      setError("Account with this email already exists. Please sign in instead.");
-      return;
-    }
-    
-    if (!validatePassword(signupPassword)) {
-      setError(
-        "Password must have: 12+ chars, 1 uppercase, 1 digit, 1 special char."
-      );
-      return;
-    }
-
-    const newUser = {
-      id: Date.now().toString(),
-      name: signupName,
-      email: normalizedSignupEmail,
-      password: signupPassword,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedUsers = [...currentUsers, newUser];
-
-    localStorage.setItem("cargoflow_users", JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-
-    setInfo("Account created successfully! You can now sign in.");
-    setMode("signin");
-    
-    // Clear form
-    setSignupName("");
-    setSignupEmail("");
-    setSignupPassword("");
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     setError("");
     setInfo("");
 
-    if (!email) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       setError("Enter your email first to reset password.");
       return;
     }
-    if (!validateEmail(email)) {
+    if (!validateEmail(normalizedEmail)) {
       setError("Please enter a valid email address.");
       return;
     }
 
-    const user = users.find((user) => user.email === email);
-    if (user) {
-      setInfo("Password reset link sent to your email.");
-    } else {
-      setInfo("If this email is registered, reset link has been sent.");
+    try {
+      setLoading(true);
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Unable to start password reset.");
+      }
+
+      setInfo(data.message || "If this email is registered, reset link has been sent.");
+    } catch (err) {
+      setError(err.message || "Unable to start password reset.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -364,7 +350,7 @@ const LoginPage = () => {
               {info && <div className="info-message">{info}</div>}
 
               <button type="submit" className="primary-button">
-                Sign in
+                {loading ? "Please wait..." : "Sign in"}
               </button>
 
               <div className="role-hint">
@@ -430,11 +416,38 @@ const LoginPage = () => {
                 Email must contain one "@" and some letters before it.
               </div>
 
+              <div className="role-selector">
+                <label className="form-label">Register as:</label>
+                <div className="role-buttons">
+                  <button
+                    type="button"
+                    className={`role-button ${selectedRole === 'admin' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('admin')}
+                  >
+                    Admin
+                  </button>
+                  <button
+                    type="button"
+                    className={`role-button ${selectedRole === 'manager' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('manager')}
+                  >
+                    Manager
+                  </button>
+                  <button
+                    type="button"
+                    className={`role-button ${selectedRole === 'driver' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('driver')}
+                  >
+                    Driver
+                  </button>
+                </div>
+              </div>
+
               {error && <div className="error-message">{error}</div>}
               {info && <div className="info-message">{info}</div>}
 
               <button type="submit" className="primary-button">
-                Sign up
+                {loading ? "Please wait..." : "Sign up"}
               </button>
             </form>
           )}

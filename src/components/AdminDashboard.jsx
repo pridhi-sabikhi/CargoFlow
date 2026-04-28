@@ -149,6 +149,9 @@ function Card({ children, style = {}, p = 22 }) {
 export default function AdminDashboard() {
   const [dateRange, setDateRange] = useState("This Month");
   const [scrolled, setScrolled] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
@@ -156,49 +159,150 @@ export default function AdminDashboard() {
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  const stats = [
-    { label:"Total Sales",    icon:"💰", num:983410, prefix:"₹", change:"+3.36%", pos:true,  color:"#3b82f6", bg:"#eff6ff" },
-    { label:"Total Orders",   icon:"📦", num:58375,  prefix:"",  change:"-2.89%", pos:false, color:"#f59e0b", bg:"#fffbeb" },
-    { label:"Total Visitors", icon:"👥", num:237782, prefix:"",  change:"+8.02%", pos:true,  color:"#10b981", bg:"#ecfdf5" },
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboardData(selectedRange = dateRange) {
+      try {
+        setLoading(true);
+        setDashboardError("");
+        const res = await fetch(`/api/dashboard/summary?range=${encodeURIComponent(selectedRange)}`);
+        if (!res.ok) {
+          throw new Error(`Dashboard request failed with status ${res.status}`);
+        }
+        const data = await res.json();
+        if (isMounted) {
+          setDashboardData(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setDashboardError("Failed to load live dashboard data. Showing fallback data.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadDashboardData(dateRange);
+    // listen for newly created shipments and refresh dashboard
+    const onCreated = () => loadDashboardData(dateRange);
+    window.addEventListener('shipments:created', onCreated);
+    window.addEventListener('shipments:changed', onCreated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('shipments:created', onCreated);
+      window.removeEventListener('shipments:changed', onCreated);
+    };
+  }, [dateRange]);
+
+  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+
+  const fallbackStats = [
+    { label:"Total Sales", icon:"💰", num:983410, prefix:"₹", change:"+3.36%", pos:true, color:"#3b82f6", bg:"#eff6ff" },
+    { label:"Total Orders", icon:"📦", num:58375, prefix:"", change:"+2.89%", pos:true, color:"#f59e0b", bg:"#fffbeb" },
+    { label:"Delivered Orders", icon:"✅", num:23782, prefix:"", change:"+8.02%", pos:true, color:"#10b981", bg:"#ecfdf5" },
   ];
-  const cats = [
-    { name:"Electronics",           val:"₹3,400,000", color:"#3b82f6", pct:45 },
-    { name:"Fashion",               val:"₹1,200,000", color:"#10b981", pct:25 },
-    { name:"Home & Kitchen",        val:"₹595,000",   color:"#f59e0b", pct:15 },
-    { name:"Beauty & Personal Care",val:"₹575,000",   color:"#8b5cf6", pct:10 },
-    { name:"Sports & Outdoors",     val:"₹550,000",   color:"#ef4444", pct:5  },
+  const fallbackCats = [
+    { name:"Electronics", val:"₹3,400,000", color:"#3b82f6", pct:45 },
+    { name:"Fashion", val:"₹1,200,000", color:"#10b981", pct:25 },
+    { name:"Home", val:"₹595,000", color:"#f59e0b", pct:15 },
+    { name:"Beauty", val:"₹575,000", color:"#8b5cf6", pct:10 },
+    { name:"Sports", val:"₹550,000", color:"#ef4444", pct:5 },
   ];
-  const revD  = [32000,28000,35000,30000,38000,42000,45000,40000,38000,42000,48000,52000];
-  const ordD  = [28000,25000,32000,28000,35000,38000,40000,36000,34000,38000,42000,45000];
-  const months= ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const orders= [
-    { no:1, id:"#10254", cust:"Amaya Weller",    prod:"Wireless Headphones", qty:2, date:"12-Aug", st:"Shipped",    amt:"₹100" },
-    { no:2, id:"#10255", cust:"Sebastian Adams", prod:"Running Shoes",        qty:1, date:"12-Aug", st:"Processing", amt:"₹75"  },
-    { no:3, id:"#10256", cust:"Suzanne Bright",  prod:"Smartwatch",           qty:1, date:"12-Aug", st:"Shipped",    amt:"₹150" },
-    { no:4, id:"#10257", cust:"Peter Howl",      prod:"Coffee Maker",         qty:1, date:"12-Aug", st:"Processing", amt:"₹60"  },
-    { no:5, id:"#10258", cust:"Anta Singh",      prod:"Bluetooth Speaker",    qty:3, date:"12-Aug", st:"Shipped",    amt:"₹50"  },
+  const fallbackRevD = [32000,28000,35000,30000,38000,42000,45000,40000,38000,42000,48000,52000];
+  const fallbackOrdD = [28000,25000,32000,28000,35000,38000,40000,36000,34000,38000,42000,45000];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fallbackOrders = [
+    { no:1, id:"#10254", cust:"Amaya Weller", prod:"Wireless Headphones", qty:2, date:"12-Aug", st:"Shipped", amt:"₹100" },
+    { no:2, id:"#10255", cust:"Sebastian Adams", prod:"Running Shoes", qty:1, date:"12-Aug", st:"Processing", amt:"₹75" },
+    { no:3, id:"#10256", cust:"Suzanne Bright", prod:"Smartwatch", qty:1, date:"12-Aug", st:"Shipped", amt:"₹150" },
+    { no:4, id:"#10257", cust:"Peter Howl", prod:"Coffee Maker", qty:1, date:"12-Aug", st:"Processing", amt:"₹60" },
+    { no:5, id:"#10258", cust:"Anta Singh", prod:"Bluetooth Speaker", qty:3, date:"12-Aug", st:"Shipped", amt:"₹50" },
   ];
-  const activity = [
-    { user:"Mayreen Steel",  msg:"purchased 2 items totaling ₹300",                       type:"purchase", time:"2 min ago"   },
-    { user:null,             msg:'Price of "Smart TV" updated from ₹500 to ₹450',         type:"update",   time:"15 min ago"  },
-    { user:"Whomit Laurent", msg:'left a 5-star review for "Wireless Headphones"',        type:"review",   time:"1 hour ago"  },
-    { user:null,             msg:"Running Shoes stock is below 10 units",                  type:"alert",    time:"3 hours ago" },
-    { user:"Damien Ugo's",   msg:'order changed from "Pending" to "Processing"',           type:"status",   time:"5 hours ago" },
+  const fallbackTraffic = [
+    { src:"Delivered", pct:40, color:"#3b82f6" },
+    { src:"In Transit", pct:30, color:"#10b981" },
+    { src:"Processing", pct:15, color:"#f59e0b" },
+    { src:"Shipped", pct:10, color:"#8b5cf6" },
+    { src:"Pending", pct:5, color:"#ef4444" },
   ];
-  const traffic = [
-    { src:"Direct Traffic",   pct:40, color:"#3b82f6" },
-    { src:"Organic Search",   pct:30, color:"#10b981" },
-    { src:"Social Media",     pct:15, color:"#f59e0b" },
-    { src:"Referral Traffic", pct:10, color:"#8b5cf6" },
-    { src:"Email Campaigns",  pct:5,  color:"#ef4444" },
+  const fallbackLocs = [
+    { country:"Maharashtra", pct:36, val:366 },
+    { country:"Karnataka", pct:24, val:244 },
+    { country:"Delhi", pct:17.5, val:175 },
+    { country:"Tamil Nadu", pct:15, val:150 },
+    { country:"Gujarat", pct:7.5, val:75 },
   ];
-  const locs = [
-    { country:"United States",  pct:36,   val:366 },
-    { country:"United Kingdom", pct:24,   val:244 },
-    { country:"Indonesia",      pct:17.5, val:175 },
-    { country:"Russia",         pct:15,   val:150 },
-    { country:"Others",         pct:7.5,  val:75  },
-  ];
+
+  const stats = dashboardData?.stats
+    ? [
+        { label:"Total Sales", icon:"💰", num:dashboardData.stats.totalSales || 0, prefix:"₹", change:"Live", pos:true, color:"#3b82f6", bg:"#eff6ff" },
+        { label:"Total Orders", icon:"📦", num:dashboardData.stats.totalOrders || 0, prefix:"", change:"Live", pos:true, color:"#f59e0b", bg:"#fffbeb" },
+        { label:"Delivered Orders", icon:"✅", num:dashboardData.stats.deliveredOrders || 0, prefix:"", change:"Live", pos:true, color:"#10b981", bg:"#ecfdf5" },
+      ]
+    : fallbackStats;
+
+  const categoryColors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4"];
+  const categoriesTotal = (dashboardData?.categories || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const cats = dashboardData?.categories?.length
+    ? dashboardData.categories.map((item, index) => ({
+        name: item.name,
+        val: formatCurrency(item.value),
+        color: categoryColors[index % categoryColors.length],
+        pct: categoriesTotal > 0 ? Math.max(1, Math.round((Number(item.value || 0) / categoriesTotal) * 100)) : 0
+      }))
+    : fallbackCats;
+
+  const monthlyMap = new Map((dashboardData?.monthly || []).map((m) => [m._id, m]));
+  const revD = months.map((_, monthIndex) => {
+    const current = monthlyMap.get(monthIndex + 1);
+    return current?.revenue ?? fallbackRevD[monthIndex];
+  });
+  const avgOrderValue = (dashboardData?.stats?.totalOrders || 0) > 0
+    ? (dashboardData.stats.totalSales || 0) / dashboardData.stats.totalOrders
+    : 0;
+  const ordD = months.map((_, monthIndex) => {
+    const current = monthlyMap.get(monthIndex + 1);
+    if (!current?.orders) {
+      return fallbackOrdD[monthIndex];
+    }
+    return Math.round(current.orders * avgOrderValue);
+  });
+
+  const locs = dashboardData?.statesTop6?.length
+    ? (() => {
+        const total = dashboardData.statesTop6.reduce((sum, item) => sum + Number(item.users || 0), 0);
+        return dashboardData.statesTop6.map((item) => ({
+          country: item.state,
+          val: Number(item.users || 0),
+          pct: total > 0 ? Number(((Number(item.users || 0) / total) * 100).toFixed(1)) : 0
+        }));
+      })()
+    : fallbackLocs;
+
+  const traffic = dashboardData?.trafficSources?.length
+    ? dashboardData.trafficSources.map((source, index) => ({
+        src: source.source,
+        pct: source.pct,
+        color: categoryColors[index % categoryColors.length]
+      }))
+    : fallbackTraffic;
+
+  const orders = dashboardData?.recentOrders?.length
+    ? dashboardData.recentOrders
+    : fallbackOrders;
+
+  const activity = orders.slice(0, 5).map((order, index) => ({
+    user: order.cust,
+    msg: `created shipment ${order.id} for customer ${order.customerId || "-"} (${order.prod})`,
+    type: index % 2 === 0 ? "purchase" : "status",
+    time: `${index + 1} ${index === 0 ? "min" : "hours"} ago`
+  }));
+
+  const activeUsersCount = locs.reduce((sum, location) => sum + Number(location.val || 0), 0);
+
   const actIcon = { purchase:"🛒", update:"✏️", review:"⭐", alert:"⚠️", status:"🔄" };
   const actBg   = { purchase:"#ecfdf5", update:"#eff6ff", review:"#fffbeb", alert:"#fef2f2", status:"#f3f0ff" };
 
@@ -263,7 +367,10 @@ export default function AdminDashboard() {
                 Welcome back,<br/>
                 <span style={{ background:"linear-gradient(90deg,#60a5fa,#34d399)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Admin</span>
               </h1>
-              <p style={{ marginTop:8, fontSize:14, color:"rgba(255,255,255,.5)" }}>Your operations at a glance — updated in real time.</p>
+              <p style={{ marginTop:8, fontSize:14, color:"rgba(255,255,255,.5)" }}>
+                {loading ? "Loading live dashboard data..." : "Your operations at a glance — updated in real time."}
+              </p>
+              {dashboardError && <p style={{ marginTop:8, fontSize:12, color:"#fecaca" }}>{dashboardError}</p>}
             </div>
             <svg viewBox="0 0 220 60" fill="none" className="spark" style={{ width:240, flexShrink:0, position:"relative", zIndex:1 }}>
               <polyline points="0,45 20,35 40,40 60,20 80,30 100,15 120,22 140,10 160,18 180,8 200,12 220,6" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity=".55"/>
@@ -323,7 +430,7 @@ export default function AdminDashboard() {
               <div style={{ ...between(), marginBottom:16 }}>
                 <p style={h3}>Revenue Analytics</p>
                 <div style={row(16)}>
-                  {[["#3b82f6","Revenue","₹14,521"],["#10b981","Orders","₹14,521"]].map(([c,l,v],i)=>(
+                  {[["#3b82f6","Revenue", formatCurrency(stats[0]?.num || 0)],["#10b981","Orders", (stats[1]?.num || 0).toLocaleString("en-IN")]].map(([c,l,v],i)=>(
                     <span key={i} style={row(6)}>
                       <span style={{ width:10,height:10,borderRadius:"50%",background:c }}/>
                       <span style={{ fontSize:12,color:"#64748b" }}>{l}</span>
@@ -370,7 +477,7 @@ export default function AdminDashboard() {
           <Reveal delay={80}>
             <Card>
               <p style={h3}>Active Users</p>
-              <p style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-1px", margin:"6px 0 4px" }}>2,758</p>
+              <p style={{ fontSize:28, fontWeight:800, color:"#0f172a", letterSpacing:"-1px", margin:"6px 0 4px" }}>{activeUsersCount.toLocaleString("en-IN")}</p>
               <span style={{ display:"inline-block", padding:"3px 9px", borderRadius:20, fontSize:11.5, fontWeight:600, background:"#dcfce7", color:"#166534", marginBottom:16 }}>+6.02% from last month</span>
               <div style={col(10)}>
                 {locs.map((l,i)=>(
@@ -409,10 +516,10 @@ export default function AdminDashboard() {
 
         {/* ── BOTTOM ROW ── */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 2.2fr 1.5fr", gap:20 }}>
-          {/* Traffic */}
+          {/* Referral Sources */}
           <Reveal>
             <Card>
-              <p style={{ ...h3, marginBottom:14 }}>Traffic Sources</p>
+              <p style={{ ...h3, marginBottom:14 }}>Referral Sources</p>
               <div style={{ display:"flex", justifyContent:"center", marginBottom:14 }}>
                 <Donut segs={traffic.map(t=>({pct:t.pct,color:t.color}))} size={130} stroke={20}/>
               </div>
@@ -441,7 +548,7 @@ export default function AdminDashboard() {
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:640 }}>
                   <thead>
                     <tr style={{ background:"#f8fafc", borderBottom:"1px solid #e2e8f0" }}>
-                      {["No","Order ID","Customer","Product","Qty","Date","Status","Amount"].map(h=>(
+                      {["No","Order ID","Customer ID","Customer","Product","Qty","Date","Status","Amount"].map(h=>(
                         <th key={h} style={{ padding:"10px 16px", textAlign:"left", fontSize:11.5, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".05em" }}>{h}</th>
                       ))}
                     </tr>
@@ -451,6 +558,7 @@ export default function AdminDashboard() {
                       <tr key={o.id} className="tr" style={{ borderBottom:"1px solid #f1f5f9" }}>
                         <td style={{ padding:"12px 16px", color:"#94a3b8", fontSize:12 }}>{o.no}</td>
                         <td style={{ padding:"12px 16px", fontWeight:700, color:"#3b82f6" }}>{o.id}</td>
+                        <td style={{ padding:"12px 16px", color:"#475569", fontFamily:"monospace" }}>{o.customerId || '-'}</td>
                         <td style={{ padding:"12px 16px", color:"#475569" }}>{o.cust}</td>
                         <td style={{ padding:"12px 16px", color:"#475569" }}>{o.prod}</td>
                         <td style={{ padding:"12px 16px", color:"#475569", textAlign:"center" }}>{o.qty}</td>

@@ -1,0 +1,143 @@
+
+/* cargoflow
+5yCUqnOmwUIfI9ba
+and for the login page i want that when i the user clicks on forgot password that time a mail should be sent to user that you can change your password and also use jwt for this*/
+
+/*Got it! You want a **separate new MongoDB project** just for CargoFlow. Here's the step-by-step to create a fresh MongoDB project:
+
+## Create a new MongoDB project for CargoFlow only
+
+### 1) Create new project in MongoDB Atlas
+
+1. Go to https://cloud.mongodb.com
+2. Click **+ New Project**
+3. Name it: **CargoFlow**
+4. Click **Create Project**
+5. Click **Create a Deployment** → Choose **Free** tier (M0)
+6. Select region closest to you (or default)
+7. Click **Create Deployment**
+8. Wait 2-3 minutes for cluster to be ready
+
+---
+
+### 2) Create database user for CargoFlow
+
+1. In your new project, go to **Security** → **Database Access**
+2. Click **+ Add New Database User**
+3. Fill:
+   - Username: `cargoflow_user`
+   - Password: Generate strong password (copy it)
+   - Confirm password
+4. Click **Add User**
+
+Save this username and password somewhere safe.
+
+---
+
+### 3) Allow your IP to connect
+
+1. Go to **Security** → **Network Access**
+2. Click **+ Add IP Address**
+3. Choose **Allow Access from Anywhere** (for development)
+   - IP: `0.0.0.0/0`
+4. Click **Confirm**
+
+---
+
+### 4) Get connection URI for CargoFlow
+
+1. Go to **Databases** → Click **Connect** on your new cluster
+2. Choose **Drivers**
+3. Select **Node.js**
+4. Copy the connection string
+5. It will look like:
+   ```
+   mongodb+srv://cargoflow_user:<password>@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+   ```
+
+---
+
+### 5) Replace placeholders in URI
+
+In the copied string, replace `<password>` with the password you created in Step 2.
+
+**Before:**
+```
+mongodb+srv://cargoflow_user:<password>@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+```
+
+**After:**
+```
+mongodb+srv://cargoflow_user:MySecurePassword123@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+```
+
+---
+
+### 6) Update CargoFlow .env file
+
+Open .env
+
+Set:
+```
+MONGODB_URI=mongodb+srv://cargoflow_user:MySecurePassword123@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+PORT=5000
+NODE_ENV=development
+JWT_SECRET=your_very_long_random_secret_key_here_at_least_32_chars
+JWT_EXPIRES_IN=2h
+JWT_RESET_EXPIRES_IN=15m
+CLIENT_URL=http://localhost:5173
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_gmail_here@gmail.com
+SMTP_PASS=your_google_app_password_here
+SMTP_FROM=CargoFlow <your_gmail_here@gmail.com>
+```
+
+---
+
+### 7) Test the connection
+
+Run seed to populate data:
+
+```powershell
+cd Cargo/server
+npm run seed
+```
+
+Expected: `MongoDB connected` + `Seed complete. Inserted 12 shipments.`
+
+---
+
+### 8) Start both servers
+
+**Terminal 1:**
+```powershell
+cd Cargo/server
+npm run dev
+```
+
+**Terminal 2:**
+```powershell
+cd Cargo
+npm run dev
+```
+
+---
+
+### 9) Verify in Mongo Compass
+
+1. Open **Mongo Compass**
+2. Click **+ New Connection**
+3. Paste your connection URI:
+   ```
+   mongodb+srv://cargoflow_user:MySecurePassword123@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+   ```
+4. Click **Connect**
+5. You'll see:
+   - **cargoflow** database (auto-created)
+     - shipments (12 records)
+     - users (empty)
+
+---
+
+**That's it!** Your CargoFlow now has its own separate MongoDB project. No connection to your other project.*/
