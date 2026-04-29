@@ -15,6 +15,8 @@ import Tracking from "./components/Tracking";
 import Invoices from "./components/INVOICES";
 import ShippingLabel from "./components/ShippingLabel";
 import CustomerTrackingResult from "./components/CustomerTrackingResult ";
+import UserDashboard from "./components/UserDashboard";
+import CustomerShippingLabel from "./components/CustomerShippingLabel";
 
 const App = () => {
   return (
@@ -38,6 +40,8 @@ const App = () => {
   <Route path="/shipping-label" element={<ShippingLabel />} />
   <Route path="/customer-tracking" element={<CustomerTrackingResult />} />
   <Route path="/customer-tracking/:id" element={<CustomerTrackingResult />} />
+  <Route path="/user/dashboard" element={<UserDashboard />} />
+  <Route path="/user/shipping-label" element={<CustomerShippingLabel />} />
   
           </Routes>
         </main>

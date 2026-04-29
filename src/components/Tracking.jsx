@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { subscribeAllLocations, staleSecs } from '../locationStore';
 
 // Fix for default markers in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -11,17 +12,26 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Format a timestamp as a relative "X ago" string — defined outside so it's stable
+const timeAgo = (ts) => {
+  const secs = Math.floor((Date.now() - ts) / 1000);
+  if (secs < 60)   return 'just now';
+  if (secs < 3600) { const m = Math.floor(secs / 60);   return `${m} min ago`; }
+  if (secs < 86400){ const h = Math.floor(secs / 3600); return `${h} hour${h > 1 ? 's' : ''} ago`; }
+  const d = Math.floor(secs / 86400); return `${d} day${d > 1 ? 's' : ''} ago`;
+};
+
 const Tracking = () => {
   const navigate = useNavigate();
   // Initial shipment data
   const [shipments, setShipments] = useState([
-    { id: 'SH-382', status: 'in-transit', warehouse: 'North hub', driver: 'J. Miller', lastUpdate: '2 min ago', lat: 40.78, lng: -73.97 },
-    { id: 'DEMO-1', status: 'in-transit', warehouse: 'East dock', driver: 'A. Chen', lastUpdate: 'just now', lat: 40.75, lng: -74.01 },
-    { id: 'SH-921', status: 'delivered', warehouse: 'South depot', driver: 'M. Voss', lastUpdate: '1 hour ago', lat: 40.71, lng: -74.00 },
-    { id: 'SH-544', status: 'pending', warehouse: 'North hub', driver: 'J. Miller', lastUpdate: '3 hours ago', lat: 40.73, lng: -73.93 },
-    { id: 'SH-238', status: 'exception', warehouse: 'East dock', driver: 'R. Zhao', lastUpdate: '35 min ago', lat: 40.69, lng: -73.88 },
-    { id: 'SH-105', status: 'in-transit', warehouse: 'South depot', driver: 'M. Voss', lastUpdate: '15 min ago', lat: 40.77, lng: -73.86 },
-    { id: 'SH-678', status: 'pending', warehouse: 'North hub', driver: 'A. Chen', lastUpdate: '1 day ago', lat: 40.80, lng: -73.94 }
+    { id: 'SH-382', status: 'in-transit', warehouse: 'North hub',   driver: 'R. Patel',  updatedAt: Date.now() - 2 * 60 * 1000,        lat: 19.0760, lng: 72.8777 },
+    { id: 'DEMO-1', status: 'in-transit', warehouse: 'East dock',   driver: 'A. Verma',  updatedAt: Date.now() - 10 * 1000,             lat: 28.6139, lng: 77.2090 },
+    { id: 'SH-921', status: 'delivered',  warehouse: 'South depot', driver: 'S. Reddy',  updatedAt: Date.now() - 60 * 60 * 1000,        lat: 12.9716, lng: 77.5946 },
+    { id: 'SH-544', status: 'pending',    warehouse: 'North hub',   driver: 'R. Patel',  updatedAt: Date.now() - 3 * 60 * 60 * 1000,    lat: 18.5204, lng: 73.8567 },
+    { id: 'SH-238', status: 'exception',  warehouse: 'East dock',   driver: 'V. Das',    updatedAt: Date.now() - 35 * 60 * 1000,        lat: 22.5726, lng: 88.3639 },
+    { id: 'SH-105', status: 'in-transit', warehouse: 'South depot', driver: 'S. Reddy',  updatedAt: Date.now() - 15 * 60 * 1000,        lat: 13.0827, lng: 80.2707 },
+    { id: 'SH-678', status: 'pending',    warehouse: 'North hub',   driver: 'A. Verma',  updatedAt: Date.now() - 24 * 60 * 60 * 1000,   lat: 23.0225, lng: 72.5714 },
   ]);
 
   const [filters, setFilters] = useState({
@@ -31,10 +41,20 @@ const Tracking = () => {
     search: ''
   });
 
+  // Ticks every 30 s so "2 min ago" labels auto-refresh
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const cardElementsRef = useRef([]);
   const mapInitializedRef = useRef(false);
+  // live GPS locations broadcast by DriverShipment
+  const [liveLocations, setLiveLocations] = useState({});
+  const liveMarkersRef = useRef({}); // { shipmentId: L.Marker }
 
   // Filter shipments based on current filters
   const filteredShipments = shipments.filter(shipment => {
@@ -64,10 +84,10 @@ const Tracking = () => {
   useEffect(() => {
     if (!mapInitializedRef.current) {
       // Initialize map
-      const map = L.map('map').setView([40.75, -73.95], 12);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap, CartoDB dark',
-        subdomains: 'abcd',
+      const map = L.map('map').setView([20.5937, 78.9629], 5); // India center
+      // OpenStreetMap — free, no API key required
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19
       }).addTo(map);
       
@@ -83,6 +103,58 @@ const Tracking = () => {
       markersRef.current = [];
     }
   }, []);
+
+  // ── Instant live GPS updates via subscribeAllLocations ───────────────────
+  useEffect(() => {
+    const unsubscribe = subscribeAllLocations((all) => {
+      if (!mapRef.current) return;
+      setLiveLocations(all);
+
+      Object.entries(all).forEach(([shipId, loc]) => {
+        const age     = staleSecs(loc);
+        const isStale = age > 30;
+        const color   = isStale ? '#b0b8c5' : '#10b981';
+        const pulse   = !isStale ? 'animation:gps-ring 1.6s ease-out infinite;' : '';
+
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="position:relative;width:34px;height:34px;">
+            <div style="background:${color};width:34px;height:34px;border-radius:50%;
+              border:3px solid #0b1a2f;box-shadow:0 0 0 2px ${color}80;${pulse}"></div>
+            <i class="fas fa-truck" style="position:absolute;top:9px;left:8px;color:#fff;font-size:12px;"></i>
+          </div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+          popupAnchor: [0, -20],
+        });
+
+        const popupHtml = `
+          <div style="font-family:Inter,sans-serif;min-width:160px;">
+            <b style="color:#10b981;font-size:0.95rem;">🛰️ ${shipId}</b>
+            <span style="background:#10b98120;color:#10b981;border:1px solid #10b981;
+              border-radius:20px;padding:1px 8px;font-size:0.7rem;margin-left:6px;">LIVE</span><br/>
+            <span style="color:#555;font-size:0.8rem;">
+              ${loc.lat.toFixed(5)}°, ${loc.lng.toFixed(5)}°<br/>
+              Accuracy: ±${loc.accuracy ?? '?'} m<br/>
+              Updated ${age}s ago
+            </span>
+          </div>`;
+
+        if (liveMarkersRef.current[shipId]) {
+          liveMarkersRef.current[shipId].setLatLng([loc.lat, loc.lng]);
+          liveMarkersRef.current[shipId].setIcon(icon);
+          liveMarkersRef.current[shipId].getPopup()?.setContent(popupHtml);
+        } else {
+          const m = L.marker([loc.lat, loc.lng], { icon, zIndexOffset: 1000 })
+            .addTo(mapRef.current)
+            .bindPopup(popupHtml);
+          liveMarkersRef.current[shipId] = m;
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, []); // eslint-disable-line
 
   // Update map markers and UI
   useEffect(() => {
@@ -120,7 +192,7 @@ const Tracking = () => {
         <div class="card-info">
           <h4><i class="fas fa-box" style="color:#f57c3a; margin-right:6px;"></i>${s.id}</h4>
           <div class="status"><i class="fas fa-circle"></i> ${s.status.replace('-',' ')}</div>
-          <div class="time"><i class="far fa-clock"></i> ${s.lastUpdate}</div>
+          <div class="time"><i class="far fa-clock"></i> ${timeAgo(s.updatedAt)}</div>
           <div style="font-size: 0.7rem; color: #a4bbd6; margin-top: 4px;">
             <i class="fas fa-warehouse"></i> ${s.warehouse}
           </div>
@@ -138,7 +210,7 @@ const Tracking = () => {
       marker.bindPopup(`
         <b style="color:#0b1a2f;">${s.id}</b><br>
         <span style="color:#f57c3a;">${s.status}</span> · ${s.driver}<br>
-        <small>${s.warehouse} · last: ${s.lastUpdate}</small>
+        <small>${s.warehouse} · last: ${timeAgo(s.updatedAt)}</small>
       `);
       marker.shipmentId = s.id;
       markersRef.current.push(marker);
@@ -201,41 +273,18 @@ const Tracking = () => {
     }
   };
 
-  // Handle refresh - randomize lastUpdate times
+  // Handle refresh — touch updatedAt so all cards show "just now"
   const handleRefresh = () => {
-    const updates = ['now', '1 min ago', '3 min ago', 'just now', '12 min ago', '30 sec ago'];
-    setShipments(prev => prev.map(s => ({
-      ...s,
-      lastUpdate: updates[Math.floor(Math.random() * updates.length)]
-    })));
+    setShipments(prev => prev.map(s => ({ ...s, updatedAt: Date.now() })));
   };
 
-  // Handle demo movement - move DEMO-1
   const handleDemoMove = () => {
     setShipments(prev => prev.map(s => {
       if (s.id === 'DEMO-1') {
-        return {
-          ...s,
-          lat: s.lat + 0.002,
-          lng: s.lng + 0.0015,
-          lastUpdate: '30 sec ago'
-        };
+        return { ...s, lat: s.lat + 0.002, lng: s.lng + 0.0015, updatedAt: Date.now() };
       }
       return s;
     }));
-
-    // Highlight the demo shipment card
-    setTimeout(() => {
-      const demoIndex = shipments.findIndex(s => s.id === 'DEMO-1');
-      if (demoIndex >= 0 && cardElementsRef.current[demoIndex]) {
-        cardElementsRef.current[demoIndex].style.backgroundColor = '#2b4d72';
-        setTimeout(() => {
-          if (cardElementsRef.current[demoIndex]) {
-            cardElementsRef.current[demoIndex].style.backgroundColor = '';
-          }
-        }, 700);
-      }
-    }, 100);
   };
 
   return (
@@ -442,10 +491,10 @@ const Tracking = () => {
               }}
             >
               <option value="all">All drivers</option>
-              <option value="J. Miller">J. Miller</option>
-              <option value="A. Chen">A. Chen</option>
-              <option value="M. Voss">M. Voss</option>
-              <option value="R. Zhao">R. Zhao</option>
+              <option value="R. Patel">R. Patel</option>
+              <option value="A. Verma">A. Verma</option>
+              <option value="S. Reddy">S. Reddy</option>
+              <option value="V. Das">V. Das</option>
             </select>
           </div>
         </div>
@@ -575,6 +624,17 @@ const Tracking = () => {
             color: '#9eb7d4',
             textAlign: 'center'
           }}>
+            {Object.keys(liveLocations).length > 0 ? (
+              <div style={{ marginBottom: '6px' }}>
+                {Object.entries(liveLocations).map(([sid, loc]) => (
+                  <div key={sid} style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'center', marginBottom:3 }}>
+                    <span style={{ width:8, height:8, borderRadius:'50%', background:'#10b981', display:'inline-block', animation:'gps-ring 1.6s ease-out infinite' }}></span>
+                    <span style={{ color:'#10b981', fontWeight:600 }}>{sid}</span>
+                    <span style={{ color:'#7e9bc0' }}>±{loc.accuracy ?? '?'}m · {staleSecs(loc)}s ago</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <i className="fas fa-location-dot" style={{ color: '#f57c3a' }}></i> Click any card to focus marker
           </div>
         </div>
@@ -628,6 +688,11 @@ const Tracking = () => {
         backdropFilter: 'blur(2px)',
         zIndex: 200
       }}>
+        {Object.keys(liveLocations).length > 0 && (
+          <span style={{ color:'#10b981', fontWeight:600 }}>
+            🛰️ {Object.keys(liveLocations).length} driver{Object.keys(liveLocations).length > 1 ? 's' : ''} broadcasting live GPS
+          </span>
+        )}
       </div>
 
       {/* Global styles */}
@@ -641,6 +706,11 @@ const Tracking = () => {
         .shipment-list::-webkit-scrollbar-thumb {
           background: #f57c3a;
           border-radius: 10px;
+        }
+        @keyframes gps-ring {
+          0%   { box-shadow: 0 0 0 0    #10b98180; }
+          70%  { box-shadow: 0 0 0 12px #10b98100; }
+          100% { box-shadow: 0 0 0 0    #10b98100; }
         }
         .filter-badge:hover {
           border-color: #f57c3a;

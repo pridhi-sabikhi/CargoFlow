@@ -61,103 +61,48 @@ const ManagerShipment = () => {
   // Sample data - In real app, this would come from API
   const [shipments] = useState([
     { 
-      id: 'SH-482', 
-      status: 'IN PROGRESS',
-      priority: 'High',
-      customer: 'Michael Chen',
-      address: '2845 Mission Street, San Francisco, CA',
-      driver: 'John Smith',
-      driverPhone: '+1 (415) 555-1234',
-      eta: '10:45 AM',
-      progress: 75,
-      type: 'Express',
-      value: '$450',
-      items: 3,
-      lat: 37.7577,
-      lng: -122.4376,
-      driverLat: 37.7523,
-      driverLng: -122.4342
+      id: 'SH-482', status: 'IN PROGRESS', priority: 'High',
+      customer: 'Rahul Sharma', address: 'Bandra West, Mumbai, Maharashtra',
+      driver: 'Raj Patel', driverPhone: '+91 98765 43210',
+      eta: '10:45 AM', progress: 75, type: 'Express', value: '₹4,500', items: 3,
+      lat: 19.0596, lng: 72.8295, driverLat: 19.0760, driverLng: 72.8777
     },
     { 
-      id: 'SH-483', 
-      status: 'PENDING',
-      priority: 'Medium',
-      customer: 'Sarah Johnson',
-      address: '123 Market Street, San Francisco, CA',
-      driver: 'Unassigned',
-      driverPhone: '-',
-      eta: '2:30 PM',
-      progress: 0,
-      type: 'Standard',
-      value: '$230',
-      items: 1,
-      lat: 37.7892,
-      lng: -122.4021,
-      driverLat: null,
-      driverLng: null
+      id: 'SH-483', status: 'PENDING', priority: 'Medium',
+      customer: 'Priya Singh', address: 'Connaught Place, New Delhi',
+      driver: 'Unassigned', driverPhone: '-',
+      eta: '2:30 PM', progress: 0, type: 'Standard', value: '₹2,300', items: 1,
+      lat: 28.6315, lng: 77.2167, driverLat: null, driverLng: null
     },
     { 
-      id: 'SH-484', 
-      status: 'DELIVERED',
-      priority: 'Low',
-      customer: 'Robert Wilson',
-      address: '555 California Street, San Francisco, CA',
-      driver: 'Mike Davis',
-      driverPhone: '+1 (415) 555-5678',
-      eta: 'Delivered',
-      progress: 100,
-      type: 'Standard',
-      value: '$890',
-      items: 5,
-      lat: 37.7924,
-      lng: -122.4039,
-      driverLat: 37.7924,
-      driverLng: -122.4039
+      id: 'SH-484', status: 'DELIVERED', priority: 'Low',
+      customer: 'Amit Kumar', address: 'Koramangala, Bangalore, Karnataka',
+      driver: 'Suresh Reddy', driverPhone: '+91 98765 55678',
+      eta: 'Delivered', progress: 100, type: 'Standard', value: '₹8,900', items: 5,
+      lat: 12.9352, lng: 77.6245, driverLat: 12.9352, driverLng: 77.6245
     },
     { 
-      id: 'SH-485', 
-      status: 'DELAYED',
-      priority: 'High',
-      customer: 'Emily Brown',
-      address: '1 Montgomery Street, San Francisco, CA',
-      driver: 'Sarah Wilson',
-      driverPhone: '+1 (415) 555-9012',
-      eta: 'Delayed',
-      progress: 45,
-      type: 'Express',
-      value: '$1,200',
-      items: 8,
-      lat: 37.7895,
-      lng: -122.4019,
-      driverLat: 37.7850,
-      driverLng: -122.4005
+      id: 'SH-485', status: 'DELAYED', priority: 'High',
+      customer: 'Neha Gupta', address: 'Salt Lake, Kolkata, West Bengal',
+      driver: 'Vikram Das', driverPhone: '+91 98765 99012',
+      eta: 'Delayed', progress: 45, type: 'Express', value: '₹12,000', items: 8,
+      lat: 22.5726, lng: 88.3639, driverLat: 22.5500, driverLng: 88.3400
     },
     { 
-      id: 'SH-486', 
-      status: 'IN PROGRESS',
-      priority: 'Medium',
-      customer: 'David Lee',
-      address: '201 Spear Street, San Francisco, CA',
-      driver: 'James Brown',
-      driverPhone: '+1 (415) 555-3456',
-      eta: '11:15 AM',
-      progress: 60,
-      type: 'Standard',
-      value: '$675',
-      items: 4,
-      lat: 37.7912,
-      lng: -122.3928,
-      driverLat: 37.7880,
-      driverLng: -122.3950
+      id: 'SH-486', status: 'IN PROGRESS', priority: 'Medium',
+      customer: 'Arjun Mehta', address: 'Dadar, Mumbai, Maharashtra',
+      driver: 'Deepak Joshi', driverPhone: '+91 98765 33456',
+      eta: '11:15 AM', progress: 60, type: 'Standard', value: '₹6,750', items: 4,
+      lat: 19.0178, lng: 72.8478, driverLat: 19.0400, driverLng: 72.8600
     },
   ]);
 
   const [drivers] = useState([
-    { id: 1, name: 'John Smith', status: 'On Delivery', activeShipments: 2, rating: 4.8, phone: '+1 (415) 555-1234', lat: 37.7523, lng: -122.4342 },
-    { id: 2, name: 'Mike Davis', status: 'Available', activeShipments: 0, rating: 4.9, phone: '+1 (415) 555-5678', lat: 37.7892, lng: -122.4021 },
-    { id: 3, name: 'Sarah Wilson', status: 'On Delivery', activeShipments: 1, rating: 4.7, phone: '+1 (415) 555-9012', lat: 37.7850, lng: -122.4005 },
-    { id: 4, name: 'James Brown', status: 'Break', activeShipments: 1, rating: 4.6, phone: '+1 (415) 555-3456', lat: 37.7880, lng: -122.3950 },
-    { id: 5, name: 'Lisa Anderson', status: 'Available', activeShipments: 0, rating: 4.9, phone: '+1 (415) 555-7890', lat: 37.7800, lng: -122.4100 },
+    { id: 1, name: 'Raj Patel',    status: 'On Delivery', activeShipments: 2, rating: 4.8, phone: '+91 98765 43210', lat: 19.0760, lng: 72.8777 },
+    { id: 2, name: 'Suresh Reddy', status: 'Available',   activeShipments: 0, rating: 4.9, phone: '+91 98765 55678', lat: 28.6139, lng: 77.2090 },
+    { id: 3, name: 'Vikram Das',   status: 'On Delivery', activeShipments: 1, rating: 4.7, phone: '+91 98765 99012', lat: 22.5726, lng: 88.3639 },
+    { id: 4, name: 'Deepak Joshi', status: 'Break',       activeShipments: 1, rating: 4.6, phone: '+91 98765 33456', lat: 19.0178, lng: 72.8478 },
+    { id: 5, name: 'Anita Sharma', status: 'Available',   activeShipments: 0, rating: 4.9, phone: '+91 98765 77890', lat: 12.9716, lng: 77.5946 },
   ]);
 
   // Stats
@@ -177,9 +122,10 @@ const ManagerShipment = () => {
   // Initialize map
   useEffect(() => {
     if (!mapInstanceRef.current && mapRef.current) {
-      const map = L.map(mapRef.current).setView([37.7749, -122.4194], 12);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap, CartoDB'
+      const map = L.map(mapRef.current).setView([20.5937, 78.9629], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
       }).addTo(map);
 
       mapInstanceRef.current = map;
@@ -1001,7 +947,7 @@ const ManagerShipment = () => {
         }}>
           <FaBell style={{ color: '#ef4444', fontSize: '1.2rem' }} />
           <span>
-            <strong style={{ color: '#ef4444' }}>3 Alerts:</strong> SH-485 delayed due to traffic · Driver John Smith needs assistance · Low fuel warning for Truck #4
+            <strong style={{ color: '#ef4444' }}>3 Alerts:</strong> SH-485 delayed due to traffic · Driver Raj Patel needs assistance · Low fuel warning for Truck #4
           </span>
           <button
             onClick={() => showToast('Viewing all alerts')}

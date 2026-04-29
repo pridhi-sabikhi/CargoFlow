@@ -125,8 +125,7 @@ export default function DriverDashboard() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [selectedShift, setSelectedShift] = useState("Today");
-  const [activeTab, setActiveTab] = useState("overview");
-  const [showBreakReminder, setShowBreakReminder] = useState(true);
+  const [activeTab, setActiveTab]         = useState("overview");
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
@@ -136,60 +135,76 @@ export default function DriverDashboard() {
 
   // Driver info
   const driver = {
-    name: "Michael Chen",
+    name: "Rajesh Kumar",
     id: "DRV-3842",
     vehicle: "Truck T-842",
     shift: "Morning (6AM - 2PM)",
     status: "on-duty",
     rating: 4.92,
     totalTrips: 1248,
-    avatar: "MC"
+    avatar: "RK"
   };
 
-  // Stats cards data
+  // Today's route stops
+  const routeStops = [
+    { id: 1, customer: "Priya Sharma",    address: "Bandra West, Mumbai",       time: "9:30 AM",  status: "completed",  type: "delivery", package: "#PKG-10254" },
+    { id: 2, customer: "Amit Verma",      address: "Andheri East, Mumbai",      time: "10:15 AM", status: "completed",  type: "delivery", package: "#PKG-10255" },
+    { id: 3, customer: "Sunita Patel",    address: "Dadar, Mumbai",             time: "11:00 AM", status: "in-transit", type: "delivery", package: "#PKG-10256" },
+    { id: 4, customer: "Ravi Mehta",      address: "Kurla, Mumbai",             time: "11:45 AM", status: "pending",    type: "pickup",   package: "#PKG-10257" },
+    { id: 5, customer: "Kavita Singh",    address: "Chembur, Mumbai",           time: "12:30 PM", status: "pending",    type: "delivery", package: "#PKG-10258" },
+    { id: 6, customer: "Warehouse Return",address: "Bhiwandi Warehouse, Thane", time: "1:15 PM",  status: "pending",    type: "return",   package: "#RMA-3302"  },
+  ];
+
+  // Points system
+  const POINTS_PER_DELIVERY = 5;
+  const POINTS_TARGET        = 10000;
+  const BONUS_AT_TARGET      = 5000;
+  const completedDeliveries  = routeStops.filter(s => s.status === "completed").length;
+  const totalPoints          = 8340 + completedDeliveries * POINTS_PER_DELIVERY;
+  const pointsPct            = Math.min((totalPoints / POINTS_TARGET) * 100, 100);
+  const pointsLeft           = Math.max(POINTS_TARGET - totalPoints, 0);
+  const deliveriesLeft       = Math.ceil(pointsLeft / POINTS_PER_DELIVERY);
+
+  // Stats cards
   const stats = [
     { label: "Today's Deliveries", icon: "📦", value: 24, target: 28, prefix: "", suffix: "", change: "+3", pos: true, color: "#3b82f6", bg: "#eff6ff" },
     { label: "Completed", icon: "✅", value: 18, target: 24, prefix: "", suffix: "", change: "75%", pos: true, color: "#10b981", bg: "#ecfdf5" },
     { label: "Distance Today", icon: "📍", value: 156, prefix: "", suffix: "km", change: "+12 km", pos: true, color: "#f59e0b", bg: "#fffbeb" },
-    { label: "Est. Earnings", icon: "💰", value: 245, prefix: "$", suffix: "", change: "+$32", pos: true, color: "#8b5cf6", bg: "#f3f0ff" },
+    { label: "Points Today", icon: "⭐", value: completedDeliveries * POINTS_PER_DELIVERY, prefix: "+", suffix: " pts", change: `${completedDeliveries} deliveries`, pos: true, color: "#f57c3a", bg: "#fff7ed" },
   ];
 
-  // Today's route stops
-  const routeStops = [
-    { id: 1, customer: "Amaya Weller", address: "123 Main St, Apt 4B", time: "9:30 AM", status: "completed", type: "delivery", package: "#PKG-10254" },
-    { id: 2, customer: "Sebastian Adams", address: "456 Oak Ave", time: "10:15 AM", status: "completed", type: "delivery", package: "#PKG-10255" },
-    { id: 3, customer: "Suzanne Bright", address: "789 Pine Rd", time: "11:00 AM", status: "in-transit", type: "delivery", package: "#PKG-10256" },
-    { id: 4, customer: "Peter Howl", address: "321 Elm St", time: "11:45 AM", status: "pending", type: "pickup", package: "#PKG-10257" },
-    { id: 5, customer: "Anta Singh", address: "654 Cedar Ln", time: "12:30 PM", status: "pending", type: "delivery", package: "#PKG-10258" },
-    { id: 6, customer: "Warehouse Return", address: "100 Distribution Ctr", time: "1:15 PM", status: "pending", type: "return", package: "#RMA-3302" },
-  ];
-
-  // Performance metrics
-  const performance = [
-    { metric: "On-Time Delivery", value: 94, target: 95, color: "#3b82f6" },
-    { metric: "Customer Rating", value: 4.92, target: 5, color: "#10b981", suffix: "/5" },
-    { metric: "Fuel Efficiency", value: 8.2, target: 10, color: "#f59e0b", suffix: "km/l" },
-    { metric: "Break Compliance", value: 100, target: 100, color: "#8b5cf6", suffix: "%" },
-  ];
-
-  // Recent notifications
-  const notifications = [
-    { type: "route", msg: "New stop added to your route", time: "5 min ago", icon: "🔄", bg: "#eff6ff" },
-    { type: "alert", msg: "Traffic ahead on I-95, expect 10 min delay", time: "15 min ago", icon: "⚠️", bg: "#fef2f2" },
-    { type: "success", msg: "Package #PKG-10254 marked as delivered", time: "32 min ago", icon: "✅", bg: "#ecfdf5" },
-    { type: "info", msg: "Break reminder: 4 hours driving completed", time: "1 hour ago", icon: "☕", bg: "#fffbeb" },
-  ];
-
-  // Earnings data
-  const earnings = [
-    { day: "Mon", amount: 185 },
-    { day: "Tue", amount: 210 },
-    { day: "Wed", amount: 195 },
-    { day: "Thu", amount: 245 },
-    { day: "Fri", amount: 230 },
-    { day: "Sat", amount: 175 },
-    { day: "Sun", amount: 0 },
-  ];
+  // Experience / career data
+  const experience = {
+    joinDate:      "March 2021",
+    totalYears:    3,
+    totalMonths:   4,
+    totalShifts:   892,
+    currentLevel:  "Senior Driver",
+    nextLevel:     "Lead Driver",
+    levelProgress: 72,
+    tripsToNext:   252,
+    badges: [
+      { icon: "🏅", label: "On-Time King",    desc: "95%+ on-time 6 months",    earned: true  },
+      { icon: "⭐", label: "5-Star Streak",   desc: "50 consecutive 5-star",    earned: true  },
+      { icon: "🚀", label: "Speed Demon",     desc: "Fastest route completion", earned: true  },
+      { icon: "🛡️", label: "Zero Incidents",  desc: "12 months incident-free",  earned: true  },
+      { icon: "🌧️", label: "All-Weather Pro", desc: "100 rain/snow deliveries", earned: false },
+      { icon: "💎", label: "Diamond Driver",  desc: "Reach Lead Driver level",  earned: false },
+    ],
+    milestones: [
+      { label: "Joined",        date: "Mar 2021", done: true,  icon: "🚗" },
+      { label: "Junior",        date: "Jun 2021", done: true,  icon: "📦" },
+      { label: "Driver",        date: "Jan 2022", done: true,  icon: "🚚" },
+      { label: "Senior",        date: "Sep 2023", done: true,  icon: "⭐" },
+      { label: "Lead Driver",   date: "~2025",    done: false, icon: "🏆" },
+    ],
+    skills: [
+      { name: "Route Efficiency", pct: 94, color: "#3b82f6" },
+      { name: "Customer Service", pct: 98, color: "#10b981" },
+      { name: "Vehicle Handling", pct: 88, color: "#f59e0b" },
+      { name: "Time Management",  pct: 91, color: "#8b5cf6" },
+    ],
+  };
 
   const ff = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
   const row = (gap=12) => ({ display:"flex", alignItems:"center", gap });
@@ -198,9 +213,9 @@ export default function DriverDashboard() {
   const label = { fontSize:11.5, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".06em" };
   const h3 = { fontSize:15, fontWeight:700, color:"#0f172a", letterSpacing:"-.3px" };
 
-  // Navigate to tracker
+  // Navigate to driver shipment map
   const goToTracker = () => {
-    navigate("/tracker");
+    navigate("/driver/shipments");
   };
 
   return (
@@ -264,16 +279,6 @@ export default function DriverDashboard() {
             boxShadow:"0 12px 40px rgba(0,0,0,.18)"
           }}>
             <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px)", backgroundSize:"32px 32px", pointerEvents:"none" }}/>
-            
-            {showBreakReminder && (
-              <div style={{ position:"absolute", top:16, right:36, background:"rgba(255,255,255,.15)", backdropFilter:"blur(10px)", padding:"8px 16px", borderRadius:30, border:"1px solid rgba(255,255,255,.2)", fontSize:13, color:"#fff", display:"flex", alignItems:"center", gap:10, zIndex:2 }}>
-                <span>☕ Time for a break? You've been driving 4 hours</span>
-                <button 
-                  onClick={() => setShowBreakReminder(false)}
-                  style={{ background:"transparent", border:"none", color:"#fff", fontSize:16, cursor:"pointer", opacity:0.8 }}
-                >×</button>
-              </div>
-            )}
 
             <div style={{ position:"relative", zIndex:1 }}>
               <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 12px", borderRadius:20, background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.2)", color:"#fff", fontSize:11.5, fontWeight:600, letterSpacing:".04em", textTransform:"uppercase", marginBottom:12 }}>
@@ -282,21 +287,9 @@ export default function DriverDashboard() {
               <h1 style={{ fontSize:32, fontWeight:800, color:"#fff", letterSpacing:"-1px", lineHeight:1.12 }}>
                 Good afternoon, {driver.name.split(' ')[0]}!
               </h1>
-              <p style={{ marginTop:8, fontSize:14, color:"rgba(255,255,255,.7)" }}>
-                You have {routeStops.filter(s => s.status === "pending").length} pending stops today.
-              </p>
             </div>
             
-            <div style={{ display:"flex", gap:24, position:"relative", zIndex:1 }}>
-              <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:24, fontWeight:800, color:"#fff" }}>{driver.rating}</div>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,.6)" }}>Rating</div>
-              </div>
-              <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:24, fontWeight:800, color:"#fff" }}>{driver.totalTrips}</div>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,.6)" }}>Total Trips</div>
-              </div>
-            </div>
+            <div style={{ position:"relative", zIndex:1 }}></div>
           </div>
         </Reveal>
 
@@ -424,7 +417,14 @@ export default function DriverDashboard() {
                   </div>
 
                   <div style={col(8)}>
-                    {routeStops.map((stop, i) => (
+                    {routeStops
+                      .filter(stop =>
+                        activeTab === "overview"   ? true :
+                        activeTab === "deliveries" ? stop.type === "delivery" :
+                        activeTab === "pickups"    ? stop.type === "pickup" || stop.type === "return" :
+                        true
+                      )
+                      .map((stop, i) => (
                       <div key={stop.id} className="route-stop" style={{ 
                         ...row(16), 
                         padding:"14px 12px", 
@@ -482,109 +482,160 @@ export default function DriverDashboard() {
             </Reveal>
           </div>
 
-          {/* Right Column - Performance & Alerts */}
+          {/* Right Column - Experience & Points & Alerts */}
           <div style={col(20)}>
-            {/* Performance Metrics */}
+            {/* ── EXPERIENCE CARD ── */}
             <Reveal>
               <Card>
-                <p style={{ ...h3, marginBottom:16 }}>Performance</p>
-                <div style={col(16)}>
-                  {performance.map((p, i) => (
-                    <div key={i}>
-                      <div style={between()}>
-                        <span style={{ fontSize:13, color:"#475569" }}>{p.metric}</span>
-                        <span style={{ fontSize:13, fontWeight:700, color:"#0f172a" }}>
-                          {p.value}{p.suffix || '%'} / {p.target}{p.suffix || '%'}
-                        </span>
-                      </div>
-                      <ABar pct={(p.value/p.target)*100} color={p.color} delay={200+i*80}/>
+                {/* Header */}
+                <div style={{ ...between(), marginBottom:20 }}>
+                  <div style={row(10)}>
+                    <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#f57c3a,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🎖️</div>
+                    <div>
+                      <p style={{ fontSize:14, fontWeight:700, color:"#0f172a" }}>Experience</p>
+                      <p style={{ fontSize:11, color:"#94a3b8" }}>{driver.name}</p>
                     </div>
-                  ))}
+                  </div>
                 </div>
 
-                <div style={{ marginTop:20, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
-                  <div style={row(16)}>
-                    <CircleProgress pct={85} size={70} stroke={6} color="#f57c3a" label="Shift Progress"/>
-                    <div style={col(4)}>
-                      <div style={row(8)}>
-                        <span style={{ width:8,height:8,borderRadius:"50%",background:"#f57c3a" }}/>
-                        <span style={{ fontSize:12, color:"#64748b" }}>Next break in 45 min</span>
-                      </div>
-                      <div style={row(8)}>
-                        <span style={{ width:8,height:8,borderRadius:"50%",background:"#10b981" }}/>
-                        <span style={{ fontSize:12, color:"#64748b" }}>Est. completion: 2:30 PM</span>
-                      </div>
+                {/* 3 stats */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                  {/* Total Trips */}
+                  <div style={{ background:"#eff6ff", borderRadius:16, padding:"18px 12px", textAlign:"center" }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:"#3b82f6", textTransform:"uppercase", letterSpacing:".05em", marginBottom:8 }}>Total Trips</div>
+                    <div style={{ fontSize:32, fontWeight:800, color:"#0f172a", letterSpacing:"-1px", lineHeight:1 }}>
+                      <Counter target={driver.totalTrips} duration={1400} />
                     </div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:6 }}>deliveries completed</div>
+                  </div>
+
+                  {/* Shifts */}
+                  <div style={{ background:"#f0fdf4", borderRadius:16, padding:"18px 12px", textAlign:"center" }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:"#10b981", textTransform:"uppercase", letterSpacing:".05em", marginBottom:8 }}>Shift</div>
+                    <div style={{ fontSize:26, fontWeight:800, color:"#0f172a", letterSpacing:"-0.5px", lineHeight:1.2 }}>
+                      {driver.shift.includes("Morning") ? "🌅" : "🌙"}
+                    </div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#10b981", marginTop:6 }}>
+                      {driver.shift.includes("Morning") ? "Morning" : "Evening"}
+                    </div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:3 }}>{driver.shift.replace(/.*\(/, "").replace(")", "")}</div>
+                  </div>
+
+                  {/* Years Active */}
+                  <div style={{ background:"#fff7ed", borderRadius:16, padding:"18px 12px", textAlign:"center" }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:"#f57c3a", textTransform:"uppercase", letterSpacing:".05em", marginBottom:8 }}>Years Active</div>
+                    <div style={{ fontSize:32, fontWeight:800, color:"#0f172a", letterSpacing:"-1px", lineHeight:1 }}>
+                      {experience.totalYears}<span style={{ fontSize:16, fontWeight:600, color:"#f57c3a" }}> yrs</span>
+                    </div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:6 }}>on the road</div>
                   </div>
                 </div>
               </Card>
             </Reveal>
 
-            {/* Earnings Preview */}
+            {/* ── POINTS CARD ── */}
             <Reveal delay={80}>
-              <Card>
+              <Card highlight={pointsLeft === 0}>
+                {/* Header */}
                 <div style={between()}>
-                  <p style={h3}>Today's Earnings</p>
-                  <span style={{ fontSize:20, fontWeight:800, color:"#0f172a" }}>$245</span>
-                </div>
-                
-                <div style={{ marginTop:16 }}>
                   <div style={row(8)}>
-                    <div style={{ flex:1 }}>
-                      <div style={row(0)}>
-                        {earnings.slice(0, 5).map((d, i) => (
-                          <div key={i} style={{ flex:1, textAlign:"center" }}>
-                            <div style={{ 
-                              height: d.amount * 0.5, 
-                              background: d.amount > 200 ? "#f57c3a" : "#fcd9b6",
-                              width: "100%",
-                              borderRadius: "4px 4px 0 0",
-                              marginBottom: 4
-                            }}/>
-                            <span style={{ fontSize:10, color:"#64748b" }}>{d.day}</span>
-                          </div>
-                        ))}
-                      </div>
+                    <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#f57c3a,#f59e0b)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>⭐</div>
+                    <div>
+                      <p style={{ fontSize:13, fontWeight:700, color:"#0f172a" }}>Delivery Points</p>
+                      <p style={{ fontSize:11, color:"#94a3b8" }}>5 pts per delivery</p>
                     </div>
                   </div>
-                  
-                  <div style={{ marginTop:20, ...row(20) }}>
-                    <div>
-                      <span style={{ fontSize:11, color:"#94a3b8" }}>Base Pay</span>
-                      <div style={{ fontSize:14, fontWeight:700, color:"#0f172a" }}>$180</div>
+                  {pointsLeft === 0 ? (
+                    <span style={{ background:"#dcfce7", color:"#166534", fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:20 }}>🎉 BONUS UNLOCKED</span>
+                  ) : (
+                    <span style={{ background:"#fff7ed", color:"#c2410c", fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:20 }}>+₹5,000 at 10k</span>
+                  )}
+                </div>
+
+                {/* Big points number */}
+                <div style={{ textAlign:"center", margin:"20px 0 8px" }}>
+                  <div style={{ fontSize:42, fontWeight:800, color:"#0f172a", letterSpacing:"-2px", lineHeight:1 }}>
+                    <Counter target={totalPoints} duration={1600} />
+                  </div>
+                  <div style={{ fontSize:12, color:"#94a3b8", marginTop:4 }}>
+                    of {POINTS_TARGET.toLocaleString()} pts
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div style={{ margin:"12px 0 6px" }}>
+                  <div style={{ height:12, background:"#f1f5f9", borderRadius:8, overflow:"hidden", position:"relative" }}>
+                    <ABar pct={pointsPct} color={pointsLeft === 0 ? "#10b981" : "#f57c3a"} delay={300} />
+                    {/* milestone tick at 100% */}
+                    <div style={{ position:"absolute", right:0, top:0, bottom:0, width:2, background:"#f57c3a", opacity:0.4 }} />
+                  </div>
+                  <div style={{ ...between(), marginTop:5 }}>
+                    <span style={{ fontSize:11, color:"#94a3b8" }}>0</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:"#f57c3a" }}>{pointsPct.toFixed(1)}%</span>
+                    <span style={{ fontSize:11, color:"#94a3b8" }}>10,000</span>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginTop:14, padding:"14px 0", borderTop:"1px solid #f1f5f9", borderBottom:"1px solid #f1f5f9" }}>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#f57c3a" }}>
+                      <Counter target={completedDeliveries * POINTS_PER_DELIVERY} duration={1200} />
                     </div>
-                    <div>
-                      <span style={{ fontSize:11, color:"#94a3b8" }}>Incentives</span>
-                      <div style={{ fontSize:14, fontWeight:700, color:"#0f172a" }}>$45</div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:2 }}>Today's pts</div>
+                  </div>
+                  <div style={{ textAlign:"center", borderLeft:"1px solid #f1f5f9", borderRight:"1px solid #f1f5f9" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#0f172a" }}>
+                      {pointsLeft > 0 ? <Counter target={pointsLeft} duration={1400} /> : "0"}
                     </div>
-                    <div>
-                      <span style={{ fontSize:11, color:"#94a3b8" }}>Tips</span>
-                      <div style={{ fontSize:14, fontWeight:700, color:"#0f172a" }}>$20</div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:2 }}>Pts to bonus</div>
+                  </div>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#10b981" }}>
+                      {pointsLeft > 0 ? <Counter target={deliveriesLeft} duration={1200} /> : "✓"}
                     </div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:2 }}>Deliveries left</div>
+                  </div>
+                </div>
+
+                {/* Bonus info */}
+                <div style={{ marginTop:14, background: pointsLeft === 0 ? "#dcfce7" : "#fff7ed", borderRadius:12, padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ fontSize:22 }}>{pointsLeft === 0 ? "🎉" : "🏆"}</div>
+                  <div>
+                    {pointsLeft === 0 ? (
+                      <>
+                        <div style={{ fontSize:13, fontWeight:700, color:"#166534" }}>Bonus Unlocked! +₹5,000 added to salary</div>
+                        <div style={{ fontSize:11, color:"#4ade80", marginTop:2 }}>Congratulations! Keep delivering to earn more.</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize:13, fontWeight:700, color:"#c2410c" }}>₹5,000 salary bonus at 10,000 pts</div>
+                        <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>
+                          {deliveriesLeft} more deliveries needed · {POINTS_PER_DELIVERY} pts each
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Today's breakdown */}
+                <div style={{ marginTop:14, ...row(16) }}>
+                  <div style={{ flex:1, background:"#f8fafc", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#0f172a" }}>{completedDeliveries}</div>
+                    <div style={{ fontSize:10, color:"#94a3b8" }}>Delivered today</div>
+                  </div>
+                  <div style={{ flex:1, background:"#f8fafc", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#f57c3a" }}>+{completedDeliveries * POINTS_PER_DELIVERY}</div>
+                    <div style={{ fontSize:10, color:"#94a3b8" }}>Points earned</div>
+                  </div>
+                  <div style={{ flex:1, background:"#f8fafc", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#8b5cf6" }}>₹{((totalPoints / POINTS_TARGET) * BONUS_AT_TARGET).toFixed(0)}</div>
+                    <div style={{ fontSize:10, color:"#94a3b8" }}>Bonus earned</div>
                   </div>
                 </div>
               </Card>
             </Reveal>
 
-            {/* Notifications */}
-            <Reveal delay={160}>
-              <Card p={0}>
-                <div style={{ padding:"22px 24px 16px", borderBottom:"1px solid #f1f5f9" }}>
-                  <p style={h3}>Alerts & Updates</p>
-                </div>
-                <div style={{ padding:8 }}>
-                  {notifications.map((n, i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"12px 14px", borderRadius:10 }}>
-                      <div style={{ width:32,height:32,borderRadius:10,background:n.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0 }}>{n.icon}</div>
-                      <div style={{ flex:1 }}>
-                        <p style={{ fontSize:13, color:"#475569", lineHeight:1.5 }}>{n.msg}</p>
-                        <span style={{ fontSize:11, color:"#94a3b8", marginTop:2, display:"block" }}>{n.time}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </Reveal>
           </div>
         </div>
       </div>

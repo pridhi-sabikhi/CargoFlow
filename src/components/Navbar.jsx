@@ -16,16 +16,12 @@ const Navbar = () => {
   // ✅ DYNAMIC DASHBOARD BASED ON USER ROLE
   const getDashboardPath = () => {
     if (!currentUser?.role) return "/admin/dashboard";
-    
     switch (currentUser.role) {
-      case 'admin':
-        return "/admin/dashboard";
-      case 'manager':
-        return "/manager/dashboard";
-      case 'driver':
-        return "/driver/dashboard";
-      default:
-        return "/admin/dashboard";
+      case 'admin':    return "/admin/dashboard";
+      case 'manager':  return "/manager/dashboard";
+      case 'driver':   return "/driver/dashboard";
+      case 'customer': return "/user/dashboard";
+      default:         return "/admin/dashboard";
     }
   };
 
@@ -52,12 +48,16 @@ const Navbar = () => {
     ? `${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Shipments`
     : "Shipments";
 
+  const role = currentUser?.role;
+
   const navItems = [
     { label: dashboardLabel, path: getDashboardPath() },
-    { label: shipmentsLabel, path: getShipmentsPath() },  // ✅ CHANGED: Dynamic path + label
-    { label: "Tracking", path: "/tracking" },
-    { label: "Invoices", path: "/invoices" },
-    { label: "Shipping Label", path: "/shipping-label" },
+    ...(role !== "customer" ? [{ label: shipmentsLabel, path: getShipmentsPath() }] : []),
+    ...(role !== "customer" && role !== "driver" ? [{ label: "Tracking",       path: "/tracking"       }] : []),
+    ...(role !== "customer" && role !== "driver" ? [{ label: "Invoices",       path: "/invoices"       }] : []),
+    ...(role !== "driver"   && role !== "customer" ? [{ label: "Shipping Label", path: "/shipping-label" }] : []),
+    // Customer gets their own shipping label page
+    ...(role === "customer" ? [{ label: "Shipping Label", path: "/user/shipping-label" }] : []),
   ];
 
   return (
@@ -73,10 +73,7 @@ const Navbar = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={
-                "nav-link" +
-                (location.pathname.startsWith(item.path.split('/')[1]) ? " nav-link-active" : "")
-              }
+              className={"nav-link" + (location.pathname === item.path || location.pathname.startsWith(item.path + "/") ? " nav-link-active" : "")}
             >
               {item.label}
             </Link>
