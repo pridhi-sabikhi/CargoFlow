@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"npm --prefix server run dev\" \"vite\"",
+    "dev": "concurrently --kill-others-on-fail false -n \"server,client\" -c \"yellow,cyan\" \"npm --prefix server run dev\" \"vite\"",
+    "dev:client": "vite",
+    "dev:server": "npm --prefix server run dev",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

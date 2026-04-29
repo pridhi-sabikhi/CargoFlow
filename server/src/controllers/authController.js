@@ -85,7 +85,7 @@ export async function signIn(req, res) {
     }
 
     if (role && user.role !== role) {
-      return res.status(403).json({ message: `This account is not allowed for ${role} login.` });
+      // Don't block login — user's actual role from DB is used
     }
 
     const token = signAccessToken(user);
@@ -133,18 +133,22 @@ export async function forgotPassword(req, res) {
     );
 
     const resetPath = `/reset-password?token=${encodeURIComponent(resetToken)}`;
-    const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const baseUrl = process.env.RESET_PASSWORD_URL || process.env.CLIENT_URL || "http://localhost:5173";
     const resetLink = `${baseUrl}${resetPath}`;
 
-    await sendPasswordResetMail({ to: user.email, resetLink });
+    const emailInfo = await sendPasswordResetMail({ to: user.email, resetLink });
 
     return res.status(200).json({
-      message: "If this email is registered, a reset link has been sent."
+      message: "If this email is registered, a reset link has been sent.",
+      previewUrl: emailInfo.previewUrl || null
     });
   } catch (error) {
+    console.error("[forgotPassword] Error:", error.message);
+    const isDev = process.env.NODE_ENV !== "production";
     return res.status(500).json({
-      message: "Failed to send reset mail. Check SMTP settings.",
-      error: error.message
+      message: isDev
+        ? error.message || "Failed to send reset email."
+        : "Failed to send reset email. Please check email configuration and try again.",
     });
   }
 }

@@ -20,8 +20,8 @@ const Navbar = () => {
     switch (currentUser.role) {
       case 'admin':
         return "/admin/dashboard";
-      case 'manager':
-        return "/manager/dashboard";
+      case 'user':
+        return "/user/dashboard";
       case 'driver':
         return "/driver/dashboard";
       default:
@@ -36,8 +36,6 @@ const Navbar = () => {
         return "/admin/shipments";
       case 'driver':
         return "/driver/shipments";
-      case 'manager':
-        return "/manager/shipments";
       default:
         return "/admin/shipments";
     }
@@ -54,10 +52,10 @@ const Navbar = () => {
 
   const navItems = [
     { label: dashboardLabel, path: getDashboardPath() },
-    { label: shipmentsLabel, path: getShipmentsPath() },  // ✅ CHANGED: Dynamic path + label
+    { label: shipmentsLabel, path: getShipmentsPath() },
     { label: "Tracking", path: "/tracking" },
     { label: "Invoices", path: "/invoices" },
-    { label: "Shipping Label", path: "/shipping-label" },
+    ...(currentUser?.role !== "driver" ? [{ label: "Shipping Label", path: "/shipping-label" }] : []),
   ];
 
   return (

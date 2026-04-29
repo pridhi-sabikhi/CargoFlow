@@ -14,13 +14,17 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@emailjs/nodejs": "^5.0.2",
+    "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^3.0.2",
+    "cargoflow": "file:..",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.5.0",
-    "nodemailer": "^7.0.5"
+    "nodemailer": "^7.0.5",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

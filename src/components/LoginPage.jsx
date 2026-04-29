@@ -68,8 +68,8 @@ const LoginPage = () => {
           case "admin":
             navigate("/admin/dashboard");
             break;
-          case "manager":
-            navigate("/manager/dashboard");
+          case "user":
+            navigate("/user/dashboard");
             break;
           case "driver":
             navigate("/driver/dashboard");
@@ -202,7 +202,7 @@ const LoginPage = () => {
             <div>
               <h1 className="login-brand-name">CargoFlow</h1>
               <p className="login-brand-tag">
-                End‑to‑End Logistics Management
+                End Logistics Management
               </p>
             </div>
           </div>
@@ -227,7 +227,7 @@ const LoginPage = () => {
           </div>
 
           <div className="login-sidebar-footer">
-            © {new Date().getFullYear()} CargoFlow
+            Â© {new Date().getFullYear()} CargoFlow
           </div>
         </div>
 
@@ -331,10 +331,10 @@ const LoginPage = () => {
                   </button>
                   <button
                     type="button"
-                    className={`role-button ${selectedRole === 'manager' ? 'role-button-active' : ''}`}
-                    onClick={() => setSelectedRole('manager')}
+                    className={`role-button ${selectedRole === 'user' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('user')}
                   >
-                    Manager
+                    User
                   </button>
                   <button
                     type="button"
@@ -354,7 +354,7 @@ const LoginPage = () => {
               </button>
 
               <div className="role-hint">
-                Login as Admin / Warehouse Manager / Driver
+                Login as Admin / User / Driver
               </div>
             </form>
           ) : (
@@ -428,10 +428,10 @@ const LoginPage = () => {
                   </button>
                   <button
                     type="button"
-                    className={`role-button ${selectedRole === 'manager' ? 'role-button-active' : ''}`}
-                    onClick={() => setSelectedRole('manager')}
+                    className={`role-button ${selectedRole === 'user' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('user')}
                   >
-                    Manager
+                    User
                   </button>
                   <button
                     type="button"
