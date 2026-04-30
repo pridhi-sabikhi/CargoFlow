@@ -180,8 +180,7 @@ export async function forgotPassword(req, res) {
     });
   } catch (error) {
     return res.status(500).json({
-      message: "Failed to send reset mail. Check SMTP settings.",
-      error: error.message
+      message: "Unable to start password reset."
     });
   }
 }

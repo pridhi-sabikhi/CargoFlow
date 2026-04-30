@@ -155,38 +155,22 @@ const LoginPage = () => {
   };
 
   const handleForgotPassword = async () => {
-    setError("");
-    setInfo("");
-
     const normalizedEmail = email.trim().toLowerCase();
 
-    if (!normalizedEmail) {
-      setError("Enter your email first to reset password.");
-      return;
-    }
-    if (!validateEmail(normalizedEmail)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
     try {
+      setError("");
+      setInfo("");
       setLoading(true);
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Unable to start password reset.");
+      if (normalizedEmail && validateEmail(normalizedEmail)) {
+        await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail })
+        });
       }
-
-      const successMessage = data.message || "If this email is registered, reset link has been sent.";
-      setInfo(successMessage);
-      window.alert("Email sent. Please check your inbox.");
-    } catch (err) {
-      setError(err.message || "Unable to start password reset.");
+      window.alert("Check your email for the password reset instructions.");
+    } catch {
+      window.alert("Check your email for the password reset instructions.");
     } finally {
       setLoading(false);
     }
