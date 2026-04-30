@@ -9,13 +9,15 @@ import AdminDashboard from "./components/AdminDashboard";
 import AdminShipments from "./components/AdminShipments";
 import DriverShipment from "./components/DriverShipment";
 import DriverDashboard from "./components/DriverDashboard";
-import ManagerDashboard from "./components/ManagerDashboard";
-import ManagerShipment from "./components/ManagerShipment";
+import DriverTracking from "./components/DriverTracking";
+import DriverInvoices from "./components/DriverInvoices";
 import Tracking from "./components/Tracking";
 import Invoices from "./components/INVOICES";
 import ShippingLabel from "./components/ShippingLabel";
 import CustomerTrackingResult from "./components/CustomerTrackingResult ";
 import ResetPassword from "./components/ResetPassword";
+import UserDashboard from "./components/UserDashboard";
+import CustomerShippingLabel from "./components/CustomerShippingLabel";
 
 const App = () => {
   return (
@@ -27,19 +29,21 @@ const App = () => {
             <Route path="/" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
-  <Route path="/manager/dashboard" element={<ManagerDashboard />} />
   <Route path="/driver/dashboard" element={<DriverDashboard />} />
 
 <Route path="/admin/shipments" element={<AdminShipments/>} />
 
   <Route path="/driver/shipments" element={<DriverShipment />} />
   <Route path="/driver/shipments/:id" element={<DriverShipment />} />
-  <Route path="/manager/shipments" element={<ManagerShipment />} />
+  <Route path="/driver/tracking" element={<DriverTracking />} />
+  <Route path="/driver/invoices" element={<DriverInvoices />} />
   <Route path="/tracking" element={<Tracking />} />
   <Route path="/invoices" element={<Invoices />} />
   <Route path="/shipping-label" element={<ShippingLabel />} />
   <Route path="/customer-tracking" element={<CustomerTrackingResult />} />
   <Route path="/customer-tracking/:id" element={<CustomerTrackingResult />} />
+  <Route path="/user/dashboard" element={<UserDashboard />} />
+  <Route path="/user/shipping-label" element={<CustomerShippingLabel />} />
   
           </Routes>
         </main>

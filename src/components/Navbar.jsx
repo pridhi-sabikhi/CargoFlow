@@ -16,16 +16,11 @@ const Navbar = () => {
   // ✅ DYNAMIC DASHBOARD BASED ON USER ROLE
   const getDashboardPath = () => {
     if (!currentUser?.role) return "/admin/dashboard";
-    
     switch (currentUser.role) {
-      case 'admin':
-        return "/admin/dashboard";
-      case 'manager':
-        return "/manager/dashboard";
-      case 'driver':
-        return "/driver/dashboard";
-      default:
-        return "/admin/dashboard";
+      case 'admin':    return "/admin/dashboard";
+      case 'user':     return "/user/dashboard";
+      case 'driver':   return "/driver/dashboard";
+      default:         return "/admin/dashboard";
     }
   };
 
@@ -36,28 +31,34 @@ const Navbar = () => {
         return "/admin/shipments";
       case 'driver':
         return "/driver/shipments";
-      case 'manager':
-        return "/manager/shipments";
       default:
         return "/admin/shipments";
     }
   };
 
-  const dashboardLabel = currentUser?.role 
-    ? `${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard`
-    : "Dashboard";
+  const dashboardLabel =
+    currentUser?.role === "user"
+      ? "User Dashboard"
+      : currentUser?.role
+        ? `${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard`
+        : "Dashboard";
 
   // ✅ DYNAMIC SHIPMENTS LABEL
   const shipmentsLabel = currentUser?.role 
     ? `${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Shipments`
     : "Shipments";
 
+  const role = currentUser?.role;
+
   const navItems = [
     { label: dashboardLabel, path: getDashboardPath() },
-    { label: shipmentsLabel, path: getShipmentsPath() },  // ✅ CHANGED: Dynamic path + label
-    { label: "Tracking", path: "/tracking" },
-    { label: "Invoices", path: "/invoices" },
-    { label: "Shipping Label", path: "/shipping-label" },
+    ...(role !== "user" ? [{ label: shipmentsLabel, path: getShipmentsPath() }] : []),
+    ...(role === "driver" ? [{ label: "Tracking", path: "/driver/tracking" }] : []),
+    ...(role === "driver" ? [{ label: "Invoices", path: "/driver/invoices" }] : []),
+    ...(role !== "user" && role !== "driver" ? [{ label: "Tracking",       path: "/tracking"       }] : []),
+    ...(role !== "user" && role !== "driver" ? [{ label: "Invoices",       path: "/invoices"       }] : []),
+    ...(role !== "driver"   && role !== "user" ? [{ label: "Shipping Label", path: "/shipping-label" }] : []),
+    ...(role === "user" ? [{ label: "Shipping Label", path: "/user/shipping-label" }] : []),
   ];
 
   return (
@@ -73,10 +74,7 @@ const Navbar = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={
-                "nav-link" +
-                (location.pathname.startsWith(item.path.split('/')[1]) ? " nav-link-active" : "")
-              }
+              className={"nav-link" + (location.pathname === item.path || location.pathname.startsWith(item.path + "/") ? " nav-link-active" : "")}
             >
               {item.label}
             </Link>

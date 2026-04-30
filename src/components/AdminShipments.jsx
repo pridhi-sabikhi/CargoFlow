@@ -43,6 +43,7 @@ export default function AdminShipments() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(blankForm());
 
+
   const loadShipments = async () => {
     try {
       setLoadingShipments(true);
@@ -61,6 +62,7 @@ export default function AdminShipments() {
       setLoadError(error.message || "Failed to load live shipments from the database.");
     } finally {
       setLoadingShipments(false);
+
     }
   };
 

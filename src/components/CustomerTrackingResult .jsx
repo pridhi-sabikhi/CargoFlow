@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { subscribeLocation, staleSecs } from '../locationStore';
 
 // Fix for default markers in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -22,12 +23,24 @@ const CustomerTrackingResult = () => {
   const [toast, setToast] = useState({ show: false, message: '', isSuccess: true });
 
   // Refs
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const deliveryMarkerRef = useRef(null);
-  const driverMarkerRef = useRef(null);
-  const routeLineRef = useRef(null);
-  const distanceMarkerRef = useRef(null);
+  const mapContainerRef = useRef(null);   // points to the map div
+  const mapInstanceRef  = useRef(null);
+  const deliveryMarkerRef  = useRef(null);
+  const driverMarkerRef    = useRef(null);
+  const routeLineRef       = useRef(null);
+  const distanceMarkerRef  = useRef(null);
+  const liveUnsubRef       = useRef(null);
+
+  // Live GPS state
+  const [liveDriverPos, setLiveDriverPos] = useState(null); // { lat, lng, accuracy, ts }
+  const [liveAge, setLiveAge]             = useState(null);
+
+  // Auto-tick liveAge every second so "Xs ago" stays current
+  useEffect(() => {
+    if (!liveDriverPos) return;
+    const t = setInterval(() => setLiveAge(staleSecs(liveDriverPos)), 1000);
+    return () => clearInterval(t);
+  }, [liveDriverPos]);
 
   // Sample shipment database
   const shipments = {
@@ -36,14 +49,14 @@ const CustomerTrackingResult = () => {
       status: 'in-transit',
       statusText: 'IN TRANSIT',
       statusIcon: 'fa-rotate',
-      customer: 'Michael Chen',
-      phone: '+1 (415) 555-7890',
-      address: '2845 Mission Street, Apt 4B, San Francisco, CA 94110',
-      driver: 'Elena Rossi · Truck #482',
+      customer: 'Rajesh Kumar',
+      phone: '+91 98765 43210',
+      address: '2845 Bandra West, Mumbai, Maharashtra 400050',
+      driver: 'Suresh Yadav · Truck #482',
       eta: '10:45 AM (in ~25 min)',
       notes: 'Call upon arrival. Gate code 4782#. Leave in locker if no answer.',
-      deliveryPos: [37.7520, -122.4186],
-      driverPos: [37.7749, -122.4194],
+      deliveryPos: [19.0596, 72.8295],
+      driverPos:   [19.0760, 72.8777],
       progress: ['pickup', 'transit', 'delivery'],
       currentStep: 1
     },
@@ -52,14 +65,14 @@ const CustomerTrackingResult = () => {
       status: 'delivered',
       statusText: 'DELIVERED',
       statusIcon: 'fa-check-circle',
-      customer: 'Sarah Johnson',
-      phone: '+1 (415) 555-1234',
-      address: '1560 Haight Street, San Francisco, CA 94117',
-      driver: 'James Wilson · Truck #215',
+      customer: 'Priya Sharma',
+      phone: '+91 98765 11111',
+      address: '1560 Andheri East, Mumbai, Maharashtra 400069',
+      driver: 'Amit Patel · Truck #215',
       eta: 'Delivered at 09:20 AM',
       notes: 'Left with receptionist. Signature on file.',
-      deliveryPos: [37.7697, -122.4485],
-      driverPos: [37.7697, -122.4485],
+      deliveryPos: [19.1136, 72.8697],
+      driverPos:   [19.1136, 72.8697],
       progress: ['pickup', 'transit', 'delivery'],
       currentStep: 2
     },
@@ -68,14 +81,14 @@ const CustomerTrackingResult = () => {
       status: 'pickup',
       statusText: 'PICKUP',
       statusIcon: 'fa-box-open',
-      customer: 'Tech Corp',
-      phone: '+1 (415) 555-0001',
-      address: '795 Folsom Street, San Francisco, CA 94107',
-      driver: 'Maria Garcia · Truck #107',
+      customer: 'Tech Solutions Pvt Ltd',
+      phone: '+91 98765 00001',
+      address: '795 Dadar, Mumbai, Maharashtra 400014',
+      driver: 'Ravi Kumar · Truck #107',
       eta: '11:30 AM',
       notes: 'Loading dock at rear. Need to sign at reception first.',
-      deliveryPos: [37.7825, -122.4010],
-      driverPos: [37.7875, -122.4080],
+      deliveryPos: [19.0178, 72.8478],
+      driverPos:   [19.0522, 72.8994],
       progress: ['pickup', 'transit', 'delivery'],
       currentStep: 0
     }
@@ -105,107 +118,85 @@ const CustomerTrackingResult = () => {
     return (R * c).toFixed(1);
   };
 
-  // Clear map layers
-  const clearMapLayers = () => {
-    if (deliveryMarkerRef.current) mapInstanceRef.current.removeLayer(deliveryMarkerRef.current);
-    if (driverMarkerRef.current) mapInstanceRef.current.removeLayer(driverMarkerRef.current);
-    if (routeLineRef.current) mapInstanceRef.current.removeLayer(routeLineRef.current);
-    if (distanceMarkerRef.current) mapInstanceRef.current.removeLayer(distanceMarkerRef.current);
-  };
-
-  // Fit map to markers
+  // Fit map to markers (used by Show Both button)
   const fitMapToMarkers = () => {
     if (deliveryMarkerRef.current && driverMarkerRef.current && mapInstanceRef.current) {
-      const bounds = L.latLngBounds([
-        deliveryMarkerRef.current.getLatLng(),
-        driverMarkerRef.current.getLatLng()
-      ]);
-      mapInstanceRef.current.fitBounds(bounds, { 
-        padding: [50, 50],
-        maxZoom: 15
-      });
+      mapInstanceRef.current.fitBounds(
+        L.latLngBounds([deliveryMarkerRef.current.getLatLng(), driverMarkerRef.current.getLatLng()]),
+        { padding: [50, 50], maxZoom: 15 }
+      );
     }
   };
 
-  // Update map with shipment data
+  // Update map with shipment data — always creates a fresh instance
   const updateMap = (shipmentData) => {
-    if (!mapInstanceRef.current) {
-      // Initialize map
-      mapInstanceRef.current = L.map(mapRef.current, {
-        center: [37.7749, -122.4194],
-        zoom: 12,
-        zoomControl: true
-      });
-      
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap, CartoDB'
-      }).addTo(mapInstanceRef.current);
-    } else {
-      clearMapLayers();
+    if (!mapContainerRef.current) return;
+
+    // Always destroy previous instance (container was remounted)
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
     }
 
-    // Create custom icons
+    const map = L.map(mapContainerRef.current, { zoom: 13, zoomControl: true });
+    // OpenStreetMap — free, no API key
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
+    mapInstanceRef.current = map;
+
+    // Delivery icon — orange pin
     const deliveryIcon = L.divIcon({
-      html: `<div style="background: #f57c3a; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #0b1a2f; box-shadow: 0 0 0 2px #ffb27a, 0 0 15px rgba(245,124,58,0.5);"></div>`,
-      className: 'delivery-marker',
-      iconSize: [30, 30],
-      iconAnchor: [15, 15]
-    });
-
-    const driverIcon = L.divIcon({
-      html: `<div style="position:relative;">
-        <div style="background:#3b9eff; width: 26px; height: 26px; border-radius: 50%; border: 3px solid #0b1a2f; box-shadow: 0 0 0 2px #9aceff, 0 0 15px rgba(59,158,255,0.5);"></div>
-        <i class="fas fa-truck" style="position: absolute; top: 6px; left: 6px; color: white; font-size: 14px; text-shadow: 0 0 3px black;"></i>
+      className: '',
+      html: `<div style="position:relative;width:32px;height:40px;">
+        <div style="background:#f57c3a;width:32px;height:32px;border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 10px #f57c3a80;"></div>
+        <i class="fas fa-home" style="position:absolute;top:7px;left:8px;color:#fff;font-size:13px;"></i>
       </div>`,
-      className: 'driver-marker',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -42],
     });
 
-    // Add markers with popups
-    deliveryMarkerRef.current = L.marker(shipmentData.deliveryPos, { icon: deliveryIcon }).addTo(mapInstanceRef.current)
-      .bindPopup(`
-        <b style="color:#0b1a2f;">Delivery Location</b><br>
-        <span style="color:#f57c3a;">${shipmentData.customer}</span><br>
-        <small>${shipmentData.address}</small>
-      `);
+    // Driver icon — blue truck
+    const driverIcon = L.divIcon({
+      className: '',
+      html: `<div style="position:relative;width:34px;height:34px;">
+        <div style="background:#3b9eff;width:34px;height:34px;border-radius:50%;
+          border:3px solid #fff;box-shadow:0 3px 10px #3b9eff80;"></div>
+        <i class="fas fa-truck" style="position:absolute;top:9px;left:8px;color:#fff;font-size:13px;"></i>
+      </div>`,
+      iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20],
+    });
 
-    driverMarkerRef.current = L.marker(shipmentData.driverPos, { icon: driverIcon }).addTo(mapInstanceRef.current)
-      .bindPopup(`
-        <b style="color:#0b1a2f;">Current Driver Position</b><br>
-        <span style="color:#3b9eff;">${shipmentData.driver}</span><br>
-        <small>ETA: ${shipmentData.eta}</small>
-      `);
+    deliveryMarkerRef.current = L.marker(shipmentData.deliveryPos, { icon: deliveryIcon })
+      .addTo(map)
+      .bindPopup(`<b style="color:#f57c3a">📦 Delivery</b><br/>${shipmentData.customer}<br/><small>${shipmentData.address}</small>`);
 
-    // Add route line
+    driverMarkerRef.current = L.marker(shipmentData.driverPos, { icon: driverIcon })
+      .addTo(map)
+      .bindPopup(`<b style="color:#3b9eff">🚚 Driver</b><br/>${shipmentData.driver}<br/><small>ETA: ${shipmentData.eta}</small>`);
+
+    const dist = calculateDistance(shipmentData.driverPos, shipmentData.deliveryPos);
+
     routeLineRef.current = L.polyline([shipmentData.driverPos, shipmentData.deliveryPos], {
-      color: '#f57c3a',
-      weight: 4,
-      opacity: 0.7,
-      dashArray: '10, 10'
-    }).addTo(mapInstanceRef.current);
+      color: '#f57c3a', weight: 4, opacity: 0.7, dashArray: '10 8',
+    }).addTo(map);
 
-    // Add distance marker in the middle
-    const midPoint = [
+    const mid = [
       (shipmentData.driverPos[0] + shipmentData.deliveryPos[0]) / 2,
-      (shipmentData.driverPos[1] + shipmentData.deliveryPos[1]) / 2
+      (shipmentData.driverPos[1] + shipmentData.deliveryPos[1]) / 2,
     ];
-    
-    const distance = calculateDistance(shipmentData.driverPos, shipmentData.deliveryPos);
-    
-    distanceMarkerRef.current = L.marker(midPoint, {
+    distanceMarkerRef.current = L.marker(mid, {
       icon: L.divIcon({
-        html: `<div style="background: #1f3450; padding: 0.2rem 0.8rem; border-radius: 40px; border: 1px solid #f57c3a; color: white; font-size: 0.9rem;">${distance} km</div>`,
-        className: 'distance-marker',
-        iconSize: [60, 30],
-        iconAnchor: [30, 15]
-      })
-    }).addTo(mapInstanceRef.current);
+        className: '',
+        html: `<div style="background:#1f3450;padding:2px 10px;border-radius:40px;border:1px solid #f57c3a;color:#fff;font-size:0.82rem;white-space:nowrap;">${dist} km</div>`,
+        iconSize: [70, 24], iconAnchor: [35, 12],
+      }),
+    }).addTo(map);
 
-    // Fit map to show both markers
-    setTimeout(() => {
-      fitMapToMarkers();
-    }, 100);
+    map.fitBounds(L.latLngBounds([shipmentData.driverPos, shipmentData.deliveryPos]), {
+      padding: [50, 50], maxZoom: 15,
+    });
   };
 
   // Update progress steps
@@ -257,27 +248,33 @@ const CustomerTrackingResult = () => {
     e.preventDefault();
     
     let id = trackingId.trim().toUpperCase();
-    
-    if (!id) {
-      id = 'SH-482';
-      setTrackingId(id);
-    }
+    if (!id) { id = 'SH-482'; setTrackingId(id); }
 
     setIsLoading(true);
+
+    // Destroy old map instance so it gets rebuilt fresh for the new shipment
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+      deliveryMarkerRef.current = null;
+      driverMarkerRef.current   = null;
+      routeLineRef.current      = null;
+      distanceMarkerRef.current = null;
+    }
+    // Reset live GPS state for new shipment
+    setLiveDriverPos(null);
+    setLiveAge(null);
+
     setShowResult(false);
 
-    // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
 
       let foundShipment = shipments[id];
-      
       if (!foundShipment) {
-        // Try partial match
-        const found = Object.values(shipments).find(s => 
+        const found = Object.values(shipments).find(s =>
           s.id.includes(id) || id.includes(s.id)
         );
-        
         if (found) {
           foundShipment = found;
           showToast(`Showing closest match: ${found.id}`, false);
@@ -289,14 +286,12 @@ const CustomerTrackingResult = () => {
 
       setShipment(foundShipment);
       setShowResult(true);
-      
-      // Update map after shipment is set
-      setTimeout(() => {
-        updateMap(foundShipment);
-      }, 100);
-      
+
+      // Give React one tick to mount the map div, then init
+      setTimeout(() => updateMap(foundShipment), 150);
+
       showToast(`✓ Tracking details loaded for ${foundShipment.id}`);
-    }, 800);
+    }, 600);
   };
 
   // Handle copy button
@@ -340,14 +335,78 @@ const CustomerTrackingResult = () => {
 
   // Load default on mount
   useEffect(() => {
+    const s = defaultShipment;
     setTimeout(() => {
-      setShipment(defaultShipment);
+      setShipment(s);
       setShowResult(true);
-      setTimeout(() => {
-        updateMap(defaultShipment);
-      }, 100);
-    }, 500);
-  }, []);
+      setTimeout(() => updateMap(s), 150);
+    }, 400);
+  }, []); // eslint-disable-line
+
+  // ── Live GPS subscription — updates driver marker instantly ──────────────
+  useEffect(() => {
+    if (!shipment) return;
+
+    // Unsubscribe from previous shipment if any
+    if (liveUnsubRef.current) { liveUnsubRef.current(); liveUnsubRef.current = null; }
+
+    liveUnsubRef.current = subscribeLocation(shipment.id, (loc) => {
+      if (!loc || !mapInstanceRef.current || !driverMarkerRef.current) return;
+
+      const latlng = [loc.lat, loc.lng];
+      const age    = staleSecs(loc);
+
+      // Update state for UI badge
+      setLiveDriverPos(loc);
+      setLiveAge(age);
+
+      // Move driver marker
+      driverMarkerRef.current.setLatLng(latlng);
+
+      // Update driver icon to green pulsing
+      driverMarkerRef.current.setIcon(L.divIcon({
+        html: `<div style="position:relative;">
+          <div style="background:#10b981;width:28px;height:28px;border-radius:50%;
+            border:3px solid #0b1a2f;box-shadow:0 0 0 2px #10b98180;
+            animation:gps-ring 1.6s ease-out infinite;"></div>
+          <i class="fas fa-truck" style="position:absolute;top:6px;left:6px;color:#fff;font-size:13px;"></i>
+        </div>`,
+        className: '',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      }));
+
+      // Update popup
+      driverMarkerRef.current.getPopup()?.setContent(
+        `<div style="font-family:Inter,sans-serif;">
+          <b style="color:#10b981">🛰️ LIVE GPS</b><br/>
+          ${loc.lat.toFixed(5)}°, ${loc.lng.toFixed(5)}°<br/>
+          <span style="color:#555;font-size:0.8rem;">±${loc.accuracy ?? '?'} m · ${age}s ago</span>
+        </div>`
+      );
+
+      // Redraw route line
+      if (routeLineRef.current) mapInstanceRef.current.removeLayer(routeLineRef.current);
+      routeLineRef.current = L.polyline([latlng, shipment.deliveryPos], {
+        color: '#10b981', weight: 4, opacity: 0.8, dashArray: '10 8',
+      }).addTo(mapInstanceRef.current);
+
+      // Update distance label
+      if (distanceMarkerRef.current) mapInstanceRef.current.removeLayer(distanceMarkerRef.current);
+      const mid = [(latlng[0] + shipment.deliveryPos[0]) / 2, (latlng[1] + shipment.deliveryPos[1]) / 2];
+      const dist = calculateDistance(latlng, shipment.deliveryPos);
+      distanceMarkerRef.current = L.marker(mid, {
+        icon: L.divIcon({
+          html: `<div style="background:#1f3450;padding:2px 10px;border-radius:40px;border:1px solid #10b981;color:#10b981;font-size:0.85rem;white-space:nowrap;">${dist} km · LIVE</div>`,
+          className: '',
+          iconSize: [90, 26],
+          iconAnchor: [45, 13],
+        }),
+      }).addTo(mapInstanceRef.current);
+    });
+
+    return () => { if (liveUnsubRef.current) liveUnsubRef.current(); };
+  }, [shipment]); // eslint-disable-line
 
   // Cleanup map on unmount
   useEffect(() => {
@@ -388,6 +447,13 @@ const CustomerTrackingResult = () => {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes gps-ring {
+          0%   { box-shadow: 0 0 0 0    #10b98180; }
+          70%  { box-shadow: 0 0 0 12px #10b98100; }
+          100% { box-shadow: 0 0 0 0    #10b98100; }
+        }
+        .leaflet-control-attribution { background:rgba(11,26,47,0.8)!important; color:#b3c9e5!important; }
+        .leaflet-control-attribution a { color:#f57c3a!important; }
       `}</style>
 
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -460,6 +526,7 @@ const CustomerTrackingResult = () => {
             </div>
 
             <button
+              id="trackBtn"
               type="submit"
               disabled={isLoading}
               style={{
@@ -552,10 +619,10 @@ const CustomerTrackingResult = () => {
             flexWrap: 'wrap'
           }}>
             <span>Try IDs:</span>
-            {['SH-482', 'DEMO-1', 'SH-921'].map((id, index) => (
+            {['SH-482', 'DEMO-1', 'SH-921'].map((tid, index) => (
               <span
-                key={id}
-                onClick={() => setTrackingId(id)}
+                key={tid}
+                onClick={() => { setTrackingId(tid); setTimeout(() => document.getElementById('trackBtn')?.click(), 50); }}
                 style={{
                   background: index === 0 ? '#1a3150' : '#0b1a2f',
                   padding: '0.5rem 1.5rem',
@@ -567,16 +634,10 @@ const CustomerTrackingResult = () => {
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#f57c3a20';
-                  e.target.style.borderColor = '#f57c3a';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = index === 0 ? '#1a3150' : '#0b1a2f';
-                  e.target.style.borderColor = index === 0 ? '#f57c3a' : '#2a4162';
-                }}
+                onMouseEnter={(e) => { e.target.style.background = '#f57c3a20'; e.target.style.borderColor = '#f57c3a'; }}
+                onMouseLeave={(e) => { e.target.style.background = index === 0 ? '#1a3150' : '#0b1a2f'; e.target.style.borderColor = index === 0 ? '#f57c3a' : '#2a4162'; }}
               >
-                {id}
+                {tid}
               </span>
             ))}
             <button
@@ -717,7 +778,7 @@ const CustomerTrackingResult = () => {
                 overflow: 'hidden',
                 border: '1px solid #2a4162'
               }}>
-                <div ref={mapRef} id="trackingMap" style={{ width: '100%', height: '400px', background: '#1a2f48' }}></div>
+                <div ref={mapContainerRef} style={{ width: '100%', height: '420px', background: '#1a2f48' }}></div>
                 
                 <div style={{
                   padding: '1rem',
@@ -733,21 +794,30 @@ const CustomerTrackingResult = () => {
                     Delivery location
                   </span>
                   <span>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', display: 'inline-block', marginRight: '5px', background: '#3b9eff', border: '2px solid #9aceff' }}></span>
-                    Current driver position
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', display: 'inline-block', marginRight: '5px', background: liveDriverPos ? '#10b981' : '#3b9eff', border: `2px solid ${liveDriverPos ? '#10b98180' : '#9aceff'}` }}></span>
+                    {liveDriverPos ? (
+                      <span style={{ color:'#10b981', fontWeight:600 }}>
+                        🛰️ LIVE · ±{liveDriverPos.accuracy ?? '?'}m · {liveAge}s ago
+                      </span>
+                    ) : 'Driver position'}
                   </span>
                   <span style={{
                     background: '#1f3450',
                     padding: '0.3rem 1rem',
                     borderRadius: '40px',
                     fontSize: '0.9rem',
-                    border: '1px solid #f57c3a',
+                    border: `1px solid ${liveDriverPos ? '#10b981' : '#f57c3a'}`,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '5px',
-                    marginLeft: 'auto'
+                    marginLeft: 'auto',
+                    color: liveDriverPos ? '#10b981' : 'inherit',
                   }}>
-                    <i className="fas fa-route"></i> <span>{calculateDistance(shipment.driverPos, shipment.deliveryPos)} km</span>
+                    <i className="fas fa-route"></i>
+                    <span>{calculateDistance(
+                      liveDriverPos ? [liveDriverPos.lat, liveDriverPos.lng] : shipment.driverPos,
+                      shipment.deliveryPos
+                    )} km</span>
                   </span>
                 </div>
 

@@ -4,6 +4,15 @@ import "./LoginPage.css";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
+const commonEmailTypos = new Set([
+  "gamil.com",
+  "gmial.com",
+  "yaho.com",
+  "yaahoo.com",
+  "outlok.com",
+  "hotnail.com"
+]);
+const emailDomainRegex = /^(?=.{4,255}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/;
 
 const LoginPage = () => {
   const [mode, setMode] = useState("signin");
@@ -21,7 +30,12 @@ const LoginPage = () => {
   const navigate = useNavigate(); 
 
 
-  const validateEmail = (value) => emailRegex.test(value);
+  const validateEmail = (value) => {
+    if (!emailRegex.test(value)) return false;
+    const domain = value.split("@")[1]?.toLowerCase() || "";
+    if (!domain || commonEmailTypos.has(domain)) return false;
+    return emailDomainRegex.test(domain);
+  };
   const validatePassword = (value) => passwordRegex.test(value);
 
   const handleSignIn = async (e) => {
@@ -68,8 +82,8 @@ const LoginPage = () => {
           case "admin":
             navigate("/admin/dashboard");
             break;
-          case "manager":
-            navigate("/manager/dashboard");
+          case "user":
+            navigate("/user/dashboard");
             break;
           case "driver":
             navigate("/driver/dashboard");
@@ -168,7 +182,9 @@ const LoginPage = () => {
         throw new Error(data?.message || "Unable to start password reset.");
       }
 
-      setInfo(data.message || "If this email is registered, reset link has been sent.");
+      const successMessage = data.message || "If this email is registered, reset link has been sent.";
+      setInfo(successMessage);
+      window.alert("Email sent. Please check your inbox.");
     } catch (err) {
       setError(err.message || "Unable to start password reset.");
     } finally {
@@ -331,10 +347,10 @@ const LoginPage = () => {
                   </button>
                   <button
                     type="button"
-                    className={`role-button ${selectedRole === 'manager' ? 'role-button-active' : ''}`}
-                    onClick={() => setSelectedRole('manager')}
+                    className={`role-button ${selectedRole === 'user' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('user')}
                   >
-                    Manager
+                    User
                   </button>
                   <button
                     type="button"
@@ -354,7 +370,7 @@ const LoginPage = () => {
               </button>
 
               <div className="role-hint">
-                Login as Admin / Warehouse Manager / Driver
+                Login as Admin / User / Driver
               </div>
             </form>
           ) : (
@@ -428,10 +444,10 @@ const LoginPage = () => {
                   </button>
                   <button
                     type="button"
-                    className={`role-button ${selectedRole === 'manager' ? 'role-button-active' : ''}`}
-                    onClick={() => setSelectedRole('manager')}
+                    className={`role-button ${selectedRole === 'user' ? 'role-button-active' : ''}`}
+                    onClick={() => setSelectedRole('user')}
                   >
-                    Manager
+                    User
                   </button>
                   <button
                     type="button"
